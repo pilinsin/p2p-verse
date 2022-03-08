@@ -1,18 +1,13 @@
 package p2pverse
 
 import(
-	//"fmt"
 	"context"
-	//"sync"
+	"io"
+	"crypto/rand"
 
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	kad "github.com/libp2p/go-libp2p-kad-dht"
-	//p2pdiscovery "github.com/libp2p/go-libp2p-discovery"
-	//bootstrap "github.com/pilinsin/go-libp2p-bootstrap"
-
-	"io"
-	"crypto/rand"
 	libp2p "github.com/libp2p/go-libp2p"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 )
@@ -41,16 +36,10 @@ type bootstrap struct{
 	h host.Host
 	dht *kad.IpfsDHT
 }
-func NewBootstrap(h host.Host, keyword string) (*bootstrap, error){
+func NewBootstrap(h host.Host) (*bootstrap, error){
 	ctx := context.Background()
 	d, err := kad.New(ctx, h)
 	if err != nil{return nil, err}
-	//if err := d.Bootstrap(ctx); err != nil{
-	//	return nil, err
-	//}
-
-	//routingDiscovery := p2pdiscovery.NewRoutingDiscovery(d)
-	//p2pdiscovery.Advertise(ctx, routingDiscovery, keyword)
 
 	return &bootstrap{ctx, h, d}, nil
 }
@@ -60,13 +49,3 @@ func (b *bootstrap) Close(){
 func (b *bootstrap) AddrInfo() peer.AddrInfo{
 	return HostToAddrInfo(b.h)
 }
-
-/*
-type bootstrapList struct{
-	bstrps []bootstrap.Bootstrap
-}
-func NewBootstrapList(hs []host.Host) (*bootstrapNodeList, error){
-	//cfg := bootstrap.Config{}
-	return nil, nil
-}
-*/

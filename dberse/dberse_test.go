@@ -1,13 +1,11 @@
-package pubsub
+package dberse
 
 import(
 	"testing"
 
-	"fmt"
 	"time"
 	"context"
 	pv "github.com/pilinsin/p2p-verse"
-	"github.com/pilinsin/go-libp2p-i2p"
 )
 func checkError(t *testing.T, err error, args ...interface{}){
 	if err != nil{
@@ -20,9 +18,7 @@ func checkError(t *testing.T, err error, args ...interface{}){
 }
 
 //go test -test.v=true .
-func TestPubSub(t *testing.T){
-	N := 10
-
+func TestDB(t *testing.T){
 	b, err := pv.SampleHost()
 	checkError(t, err)
 	bstrp, err := pv.NewBootstrap(b)
@@ -34,33 +30,26 @@ func TestPubSub(t *testing.T){
 
 	h0, err0 := pv.SampleHost()
 	checkError(t, err0)
-	ps0, err01 := NewPubSub(context.Background(), h0, nil, bAddrInfo)
+	db0, err01 := NewDB(context.Background(), h0, Const, bAddrInfo)
 	checkError(t, err01)
-	tpc0, err02 := ps0.JoinTopic("test topic")
+	defer db0.Close()
+
+	<-time.Tick(time.Second*5)
+
+	err02 := db0.Put("testkey", []byte("meow meow ^o^"))
+	t.Log("db0.Put", err02)
 	checkError(t, err02)
-	go func(){
-		defer tpc0.Close()
-		itr := 0
-		for{
-			mess, err := tpc0.GetAll()
-			t.Log(itr, err)
-			if err == nil && len(mess)>0{
-				itr += len(mess)
-				for _, mes := range mess{
-					t.Log(string(mes.Data))
-				}
-			}
-	
-			if itr >= N{return}
-		}
-	}()
+	err022 := db0.Put("testkey", []byte("meow meow2 ^o^"))
+	t.Log("db0.Put", err022)
+	checkError(t, err022)
 
 	<-time.Tick(time.Second*5)
 
 	h1, err1 := pv.SampleHost()
 	checkError(t, err1)
-	ps1, err11 := NewPubSub(context.Background(), h1, nil, bAddrInfo)
+	db1, err11 := NewDB(context.Background(), h1, Simple, bAddrInfo)
 	checkError(t, err11)
+	defer db1.Close()
 
 	t.Log("h0 id             : ", h0.ID())
 	t.Log("h0 address        : ", h0.Addrs())
@@ -69,14 +58,19 @@ func TestPubSub(t *testing.T){
 	t.Log("h0 address        :", h1.Addrs())
 	t.Log("h1 connected peers:", h1.Network().Peers())
 
-	tpc1, err12 := ps1.JoinTopic("test topic")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	v, err12 := db1.GetWait(ctx, "testkey")
 	checkError(t, err12)
-	defer tpc1.Close()
-	t.Log("topic peers list  :", tpc1.ListPeers())
-	for i := 0; i<N; i++{
-		tpc1.Publish([]byte(fmt.Sprintln("message ", i)))
-	}
+	t.Log("db1.Get", string(v))
 
+	err13 := db1.Put("testkey", []byte("meow meow meow ^.^ !!!"))
+	checkError(t, err13)
+	t.Log("db1.Put", err13)
+
+	v02, err03 := db0.GetWait(ctx, "testkey")
+	checkError(t, err03)
+	t.Log("db0.Get", string(v02))
 
 	<-time.Tick(10*time.Second)
 	t.Log("finished")

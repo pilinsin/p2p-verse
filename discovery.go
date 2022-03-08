@@ -13,11 +13,10 @@ import(
 
 func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 	ctx := context.Background()
-	d, err := kad.New(ctx, h)//, kad.BootstrapPeers(bootstraps...))
+	d, err := kad.New(ctx, h)
 	if err != nil{return err}
 
 	connectBootstraps(ctx, h, bootstraps)
-	//connectBootstraps(ctx, h, kad.GetDefaultBootstrapPeerAddrInfos())
 	if err := d.Bootstrap(ctx); err != nil{
 		return err
 	}

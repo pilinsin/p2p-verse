@@ -48,8 +48,7 @@ type api struct{
 	ps *p2ppubsub.PubSub
 }
 func NewPubSub(ctx context.Context, self host.Host, filter *filterMap, bootstraps ...peer.AddrInfo) (*api, error){
-	//filterOpt := p2ppubsub.WithPeerFilter(filterFunc(filter))
-	gossip, err := p2ppubsub.NewGossipSub(ctx, self)//, filterOpt)
+	gossip, err := p2ppubsub.NewGossipSub(ctx, self)
 	if err != nil{return nil, err}
 	if err := pv.Discovery(self, "pubsub:ejvoaenvaeo;vn;aeo", bootstraps); err != nil{
 		return nil, err
