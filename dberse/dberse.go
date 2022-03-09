@@ -14,47 +14,58 @@ import(
 	psstore "github.com/libp2p/go-libp2p-pubsub-router"
 )
 
+//validatorごとにdataBaseも作成する
 
-
-
-type api struct{
+type dBerse struct{
 	ctx context.Context
-	psStore *psstore.PubsubValueStore
+	h host.Host
+	ps *p2ppubsub.PubSub
 }
-func NewDB(ctx context.Context, self host.Host, valt valType, bootstraps ...peer.AddrInfo) (*api, error){
-	val, err := newValidator(valt)
-	if err != nil{return nil, err}
-
+func NewDBerse(ctx context.Context, self host.Host, bootstraps ...peer.AddrInfo) (*dBerse, error){
 	gossip, err := p2ppubsub.NewGossipSub(ctx, self)
 	if err != nil{return nil, err}
-	store, err := psstore.NewPubsubValueStore(ctx, self, gossip, val)
-	if err != nil{return nil, err}
-
 	if err := pv.Discovery(self, "dberse:,lm;eLvVfjtgoEhgg___eIeo;gje", bootstraps); err != nil{
 		fmt.Println("discovery err:", err)
 		return nil, err
 	}else{
-		return &api{ctx, store}, nil
-	}
-}
-func (a *api) Close(){
-	for _, name := range a.psStore.GetSubscriptions(){
-		a.psStore.Cancel(name)
+		return &dBerse{ctx, self, gossip}, nil
 	}
 }
 
-func (a *api) Put(key string, val []byte) error{
-	return a.psStore.PutValue(a.ctx, key, val)
+type database struct{
+	ctx context.Context
+	psStore *psstore.PubsubValueStore
+	validator typedValidator
+	dbName string
 }
-func (a *api) Get(key string) ([]byte, error){
-	return a.psStore.GetValue(a.ctx, key)
+func (d *dBerse) NewDB(dbName string, valt ...valType) (*database, error){
+	val, err := newValidator(valt...)
+	if err != nil{return nil, err}
+	store, err := psstore.NewPubsubValueStore(d.ctx, d.h, d.ps, val)
+	if err != nil{return nil, err}
+
+	return &database{d.ctx, store, val, dbName}, nil
 }
-func (a *api) GetWait(ctx context.Context, key string) ([]byte, error){
+func (d *database) Close(){
+	for _, name := range d.psStore.GetSubscriptions(){
+		d.psStore.Cancel(name)
+	}
+}
+
+func (d *database) Put(key string, val []byte) error{
+	key = d.validator.Type() + "/" + d.dbName + "/" + key
+	return d.psStore.PutValue(d.ctx, key, val)
+}
+func (d *database) Get(key string) ([]byte, error){
+	key = d.validator.Type() + "/" + d.dbName + "/" + key
+	return d.psStore.GetValue(d.ctx, key)
+}
+func (d *database) GetWait(ctx context.Context, key string) ([]byte, error){
 	ticker := time.NewTicker(time.Second)
 	for{
 		select{
 		case <-ticker.C:
-			val, err := a.Get(key)
+			val, err := d.Get(key)
 			if err == nil{return val, nil}
 			if ok := errors.Is(err, routing.ErrNotFound); !ok{
 				return nil, err

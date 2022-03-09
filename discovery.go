@@ -2,6 +2,7 @@ package p2pverse
 
 import(
 	"fmt"
+	"time"
 	"context"
 	"sync"
 
@@ -17,18 +18,18 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 	if err != nil{return err}
 
 	connectBootstraps(ctx, h, bootstraps)
+
+	<-time.Tick(5*time.Second)
+	
 	if err := d.Bootstrap(ctx); err != nil{
 		return err
 	}
-
-	fmt.Println("0: dht listPeers:", d.RoutingTable().ListPeers())
 
 	routingDiscovery := p2pdiscovery.NewRoutingDiscovery(d)
 	p2pdiscovery.Advertise(ctx, routingDiscovery, keyword)
 	peersCh, err := routingDiscovery.FindPeers(ctx, keyword)
 	if err != nil{return err}
 	for peer := range peersCh{
-		fmt.Println("peer found:", peer)
 		if peer.ID == h.ID(){
 			continue
 		}
@@ -40,8 +41,8 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 		}
 	}
 
-	fmt.Println("1: dht listPeers:", d.RoutingTable().ListPeers())
-	
+	//fmt.Println("dht listPeers:", d.RoutingTable().ListPeers())
+	<-time.Tick(5*time.Second)
 	return nil
 }
 

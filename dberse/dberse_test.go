@@ -26,28 +26,34 @@ func TestDB(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	<-time.Tick(time.Second*5)
+	//<-time.Tick(time.Second*5)
 
 	h0, err0 := pv.SampleHost()
 	checkError(t, err0)
-	db0, err01 := NewDB(context.Background(), h0, Const, bAddrInfo)
+	d0, err00 := NewDBerse(context.Background(), h0, bAddrInfo)
+	checkError(t, err00)
+	db0, err01 := d0.NewDB("testDB", Cid)
 	checkError(t, err01)
 	defer db0.Close()
 
-	<-time.Tick(time.Second*5)
+	//<-time.Tick(time.Second*5)
 
-	err02 := db0.Put("testkey", []byte("meow meow ^o^"))
+	cidKey, _ := MakeCidKey([]byte("meow meow ^o^"))
+	t.Log("cidKey:", cidKey)
+	err02 := db0.Put(cidKey, []byte("meow meow ^o^"))
 	t.Log("db0.Put", err02)
 	checkError(t, err02)
-	err022 := db0.Put("testkey", []byte("meow meow2 ^o^"))
+	err022 := db0.Put(cidKey, []byte("meow meow2 ^o^"))
 	t.Log("db0.Put", err022)
 	checkError(t, err022)
 
-	<-time.Tick(time.Second*5)
+	//<-time.Tick(time.Second*5)
 
 	h1, err1 := pv.SampleHost()
 	checkError(t, err1)
-	db1, err11 := NewDB(context.Background(), h1, Simple, bAddrInfo)
+	d1, err10 := NewDBerse(context.Background(), h1, bAddrInfo)
+	checkError(t, err10)
+	db1, err11 := d1.NewDB("testDB", Cid)
 	checkError(t, err11)
 	defer db1.Close()
 
@@ -60,19 +66,19 @@ func TestDB(t *testing.T){
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	v, err12 := db1.GetWait(ctx, "testkey")
+	v, err12 := db1.GetWait(ctx, cidKey)
 	checkError(t, err12)
 	t.Log("db1.Get", string(v))
 
-	err13 := db1.Put("testkey", []byte("meow meow meow ^.^ !!!"))
+	err13 := db1.Put(cidKey, []byte("meow meow meow ^.^ !!!"))
 	checkError(t, err13)
 	t.Log("db1.Put", err13)
 
-	v02, err03 := db0.GetWait(ctx, "testkey")
+	v02, err03 := db0.GetWait(ctx, cidKey)
 	checkError(t, err03)
 	t.Log("db0.Get", string(v02))
 
-	<-time.Tick(10*time.Second)
+	//<-time.Tick(10*time.Second)
 	t.Log("finished")
 }
 

@@ -12,32 +12,6 @@ import(
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-type filterMap map[string]map[peer.ID]struct{}
-func NewFilter() filterMap{
-	fm := make(filterMap)
-	return fm
-}
-func (fm filterMap) Append(topic string, peers ...peer.ID) filterMap{
-	for _, pid := range peers{
-		fm[topic][pid] = struct{}{}
-	}
-	return fm
-}
-func filterFunc(filter *filterMap) p2ppubsub.PeerFilter{
-	if filter == nil || len(*filter) == 0{
-		return func(pid peer.ID, topic string) bool{
-			return true
-		}
-	}
-	return func(pid peer.ID, topic string) bool{
-		if pm, ok := (*filter)[topic]; !ok{
-			return false
-		}else{
-			_, ok := pm[pid]
-			return len(pm) == 0 || ok
-		}
-	}
-}
 
 //PubSub Setup Note!!!!
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery -> 
@@ -47,7 +21,7 @@ type api struct{
 	ctx context.Context
 	ps *p2ppubsub.PubSub
 }
-func NewPubSub(ctx context.Context, self host.Host, filter *filterMap, bootstraps ...peer.AddrInfo) (*api, error){
+func NewPubSub(ctx context.Context, self host.Host, bootstraps ...peer.AddrInfo) (*api, error){
 	gossip, err := p2ppubsub.NewGossipSub(ctx, self)
 	if err != nil{return nil, err}
 	if err := pv.Discovery(self, "pubsub:ejvoaenvaeo;vn;aeo", bootstraps); err != nil{
