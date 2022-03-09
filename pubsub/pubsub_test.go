@@ -34,7 +34,7 @@ func TestPubSub(t *testing.T){
 
 	h0, err0 := pv.SampleHost()
 	checkError(t, err0)
-	ps0, err01 := NewPubSub(context.Background(), h0, nil, bAddrInfo)
+	ps0, err01 := NewPubSub(context.Background(), h0, bAddrInfo)
 	checkError(t, err01)
 	tpc0, err02 := ps0.JoinTopic("test topic")
 	checkError(t, err02)
@@ -59,7 +59,7 @@ func TestPubSub(t *testing.T){
 
 	h1, err1 := pv.SampleHost()
 	checkError(t, err1)
-	ps1, err11 := NewPubSub(context.Background(), h1, nil, bAddrInfo)
+	ps1, err11 := NewPubSub(context.Background(), h1, bAddrInfo)
 	checkError(t, err11)
 
 	t.Log("h0 id             : ", h0.ID())
