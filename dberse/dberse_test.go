@@ -32,18 +32,17 @@ func TestDB(t *testing.T){
 	checkError(t, err0)
 	d0, err00 := NewDBerse(context.Background(), h0, bAddrInfo)
 	checkError(t, err00)
-	db0, err01 := d0.NewDB("testDB", Cid)
+	db0, err01 := d0.NewCidDB("testDB")
 	checkError(t, err01)
 	defer db0.Close()
 
 	//<-time.Tick(time.Second*5)
-
 	cidKey, _ := MakeCidKey([]byte("meow meow ^o^"))
 	t.Log("cidKey:", cidKey)
-	err02 := db0.Put(cidKey, []byte("meow meow ^o^"))
+	err02 := db0.Put([]byte("meow meow ^o^"))
 	t.Log("db0.Put", err02)
 	checkError(t, err02)
-	err022 := db0.Put(cidKey, []byte("meow meow2 ^o^"))
+	err022 := db0.Put([]byte("meow meow2 ^o^"))
 	t.Log("db0.Put", err022)
 	checkError(t, err022)
 
@@ -53,7 +52,7 @@ func TestDB(t *testing.T){
 	checkError(t, err1)
 	d1, err10 := NewDBerse(context.Background(), h1, bAddrInfo)
 	checkError(t, err10)
-	db1, err11 := d1.NewDB("testDB", Cid)
+	db1, err11 := d1.NewCidDB("testDB")
 	checkError(t, err11)
 	defer db1.Close()
 
@@ -70,7 +69,7 @@ func TestDB(t *testing.T){
 	checkError(t, err12)
 	t.Log("db1.Get", string(v))
 
-	err13 := db1.Put(cidKey, []byte("meow meow meow ^.^ !!!"))
+	err13 := db1.Put([]byte("meow meow meow ^.^ !!!"), cidKey)
 	checkError(t, err13)
 	t.Log("db1.Put", err13)
 

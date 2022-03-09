@@ -30,13 +30,6 @@ const(
 	Hash
 	Cid
 )
-var strToValType = map[string]valType{
-	"/simple"   : Simple,
-	"/const"    : Const,
-	"/signature": Signature,
-	"/hash"     : Hash,
-	"/cid"      : Cid,
-}
 
 type typedValidator interface{
 	record.Validator
@@ -74,21 +67,8 @@ func (v constValidator) Type() string{
 	return "/const"
 }
 
-/*
-sign, err := signKey.Sign(data)
-if err != nil{return err}
-sd := struct{
-	Data []byte
-	Sign []byte
-}{data, sign}
-msd, err := json.Marshal(sd)
-if err != nil{return err}
-id, err := peer.IDFromPublicKey(verfKey)
-if err != nil{return err}
-key := peer.Encode(id)
-Put(key, msd)
-*/
-func MakeSignatureKey(vk p2pcrypto.PubKey) (string, error){
+
+func makeSignatureKey(vk p2pcrypto.PubKey) (string, error){
 	id, err := peer.IDFromPublicKey(vk)
 	if err != nil{return "", err}
 	key := peer.Encode(id)
@@ -124,18 +104,8 @@ func (v signatureValidator) Type() string{
 	return "/signature"
 }
 
-/*
-hd := struct{
-	Data []byte
-	Hash []byte
-	Salt []byte
-}{data, hash. salt}
-mhd, err := json.Marshal(hd)
-if err != nil{return err}
-key, _ := MakeHashKey(hash, salt)
-Put(key, mhd)
-*/
-func MakeHashKey(hash, salt []byte) (string, error){
+
+func makeHashKey(hash, salt []byte) (string, error){
 	uhHash := argon2.IDKey(hash, salt, 1, 64*1024, 4, 128)
 	key := base64.StdEncoding.EncodeToString(uhHash)
 	return key, nil
@@ -153,7 +123,7 @@ func (v hashValidator) Validate(key0 string, val []byte) error{
 	}{}
 	if err := json.Unmarshal(val, &hd); err != nil{return err}
 
-	s, _ := MakeHashKey(hd.Hash, hd.Salt)
+	s, _ := makeHashKey(hd.Hash, hd.Salt)
 	if key != s{return errors.New("validation error")}
 
 	return nil
@@ -168,11 +138,7 @@ func (v hashValidator) Type() string{
 	return "/hash"
 }
 
-/*
-cid, err := MakeCidKey(data)
-if err != nil{return err}
-Put(cid, data)
-*/
+
 func MakeCidKey(val []byte) (string, error){
 	format := cid.V1Builder{Codec: cid.Codecs["cbor"], MhType: mh.SHA3}
 	c, err := format.Sum(val)
