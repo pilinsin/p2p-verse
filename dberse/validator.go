@@ -3,14 +3,7 @@ package dberse
 import(
 	"strings"
 	"errors"
-	"encoding/json"
-	"encoding/base64"
 
-	"golang.org/x/crypto/argon2"
-	cid "github.com/ipfs/go-cid"
-	mh "github.com/multiformats/go-multihash"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	record "github.com/libp2p/go-libp2p-record"
 )
 
@@ -48,123 +41,6 @@ func (v simpleValidator) Select(key string, vals [][]byte) (int, error){
 }
 func (v simpleValidator) Type() string{
 	return "/simple"
-}
-
-type constValidator struct{}
-func (v constValidator) Validate(key0 string, val []byte) error{
-	ns, _, _, err := splitKey(key0)
-	if err != nil{return err}
-	if ns != v.Type(){return errors.New("invalid key")}
-	return nil
-}
-func (v constValidator) Select(key string, vals [][]byte) (int, error){
-	if len(vals) > 1{
-		return -1, nil
-	}
-	return 0, nil
-}
-func (v constValidator) Type() string{
-	return "/const"
-}
-
-
-func makeSignatureKey(vk p2pcrypto.PubKey) (string, error){
-	id, err := peer.IDFromPublicKey(vk)
-	if err != nil{return "", err}
-	key := peer.Encode(id)
-	return key, nil
-}
-type signatureValidator struct{}
-func (v signatureValidator) Validate(key0 string, val []byte) error{
-	ns, _, key, err := splitKey(key0)
-	if err != nil{return err}
-	if ns != v.Type(){return errors.New("invalid key")}
-
-	id, err := peer.Decode(key)
-	if err != nil{return err}
-	vk, err := id.ExtractPublicKey()
-	if err != nil{return err}
-	
-	sd := struct{
-		Data []byte
-		Sign []byte
-	}{}
-	if err := json.Unmarshal(val, &sd); err != nil{return err}
-
-	ok, err := vk.Verify(sd.Data, sd.Sign)
-	if err != nil{return err}
-	if !ok{return errors.New("validation error")}
-
-	return nil
-}
-func (v signatureValidator) Select(key string, vals [][]byte) (int, error){
-	return 0, nil
-}
-func (v signatureValidator) Type() string{
-	return "/signature"
-}
-
-
-func makeHashKey(hash, salt []byte) (string, error){
-	uhHash := argon2.IDKey(hash, salt, 1, 64*1024, 4, 128)
-	key := base64.StdEncoding.EncodeToString(uhHash)
-	return key, nil
-}
-type hashValidator struct{}
-func (v hashValidator) Validate(key0 string, val []byte) error{
-	ns, _, key, err := splitKey(key0)
-	if err != nil{return err}
-	if ns != v.Type(){return errors.New("invalid key")}
-
-	hd := struct{
-		Data []byte
-		Hash []byte
-		Salt []byte
-	}{}
-	if err := json.Unmarshal(val, &hd); err != nil{return err}
-
-	s, _ := makeHashKey(hd.Hash, hd.Salt)
-	if key != s{return errors.New("validation error")}
-
-	return nil
-}
-func (v hashValidator) Select(key string, vals [][]byte) (int, error){
-	if len(vals) > 1{
-		return -1, nil
-	}
-	return 0, nil
-}
-func (v hashValidator) Type() string{
-	return "/hash"
-}
-
-
-func MakeCidKey(val []byte) (string, error){
-	format := cid.V1Builder{Codec: cid.Codecs["cbor"], MhType: mh.SHA3}
-	c, err := format.Sum(val)
-	if err != nil{return "", err}
-	return c.String(), nil
-}
-type cidValidator struct{}
-func (v cidValidator) Validate(key0 string, val []byte) error{
-	ns, _, key, err := splitKey(key0)
-	if err != nil{return err}
-	if ns != v.Type(){return errors.New("invalid key")}
-
-	c, err := MakeCidKey(val)
-	if err != nil{return err}
-	
-	if key != c{return errors.New("invalid key")}
-	return nil	
-}
-func (v cidValidator) Select(key string, vals [][]byte) (int, error){
-	if len(vals) > 1{
-		return -1, nil
-	}
-	return 0, nil
-}
-func (v cidValidator) Type() string{
-	return "/cid"
 }
 
 

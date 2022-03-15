@@ -45,7 +45,6 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 	<-time.Tick(5*time.Second)
 	return nil
 }
-
 func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrInfo){
 	var wg sync.WaitGroup
 	for _, other := range others{
@@ -58,4 +57,49 @@ func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrIn
 		}()
 	}
 	wg.Wait()
+}
+
+type DiscoveryDHT struct{
+	ctx context.Context
+	h host.Host
+	d *kad.IpfsDHT
+}
+func NewDHT(h host.Host) (*DiscoveryDHT, error){
+	ctx := context.Background()
+	d, err := kad.New(ctx, h)
+	if err != nil{return nil, err}
+	return &DiscoveryDHT{ctx, h, d}, nil
+}
+func (d *DiscoveryDHT) Close(){
+	d.d.Close()
+}
+func (d *DiscoveryDHT) DHT() *kad.IpfsDHT{
+	return d.d
+}
+func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) error{
+	connectBootstraps(d.ctx, d.h, bootstraps)
+
+	<-time.Tick(5*time.Second)
+	
+	if err := d.d.Bootstrap(d.ctx); err != nil{return err}
+
+	routingDiscovery := p2pdiscovery.NewRoutingDiscovery(d.d)
+	p2pdiscovery.Advertise(d.ctx, routingDiscovery, keyword)
+	peersCh, err := routingDiscovery.FindPeers(d.ctx, keyword)
+	if err != nil{return err}
+	for peer := range peersCh{
+		if peer.ID == d.h.ID(){
+			continue
+		}
+		if len(peer.Addrs) <= 0{
+			continue
+		}
+		if err := d.h.Connect(d.ctx, peer); err != nil{
+			fmt.Println("connection err:", err)
+		}
+	}
+
+	//fmt.Println("dht listPeers:", d.RoutingTable().ListPeers())
+	<-time.Tick(5*time.Second)
+	return nil
 }
