@@ -4,6 +4,7 @@ import(
 	"strings"
 
 	pv "github.com/pilinsin/p2p-verse"
+	query "github.com/ipfs/go-datastore/query"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 )
@@ -26,12 +27,13 @@ func makeSignatureKey(vk p2pcrypto.PubKey) (string, error){
 	return id.Pretty(), nil
 }
 type signatureValidator struct{
-	updatableValidator
+	validator
 }
 func (v *signatureValidator) Validate(key string, val []byte) bool{
-	if ok := v.updatableValidator.Validate(key, val); !ok{return false}
+	if ok := v.validator.Validate(key, val); !ok{return false}
 
-	vKey := strings.Split(key, "/")[1]
+	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
+	vKey := keys[0]
 	id, err := peer.Decode(vKey)
 	if err != nil{return false}
 	vk, err := id.ExtractPublicKey()
@@ -46,42 +48,69 @@ func (v *signatureValidator) Validate(key string, val []byte) bool{
 
 
 type signatureStore struct{
-	*updatableStore
+	*logStore
 	priv p2pcrypto.PrivKey
 	pub p2pcrypto.PubKey
 }
-func (cv *crdtVerse) NewSignatureStore(name string, priv p2pcrypto.PrivKey) (*signatureStore, error){
-	v := signatureValidator{updatableValidator{}}
+func (cv *crdtVerse) NewSignatureStore(name string, priv p2pcrypto.PrivKey, pub p2pcrypto.PubKey) (*signatureStore, error){
+	v := signatureValidator{&logValidator{}}
 	st, err := cv.newCRDT(name, &v)
 	if err != nil{return nil, err}
-	return &signatureStore{&updatableStore{st}, priv, priv.GetPublic()}, nil
+	return &signatureStore{st, priv, pub}, nil
 }
-func (s *signatureStore) Put(val []byte) error{
+func (s *signatureStore) Put(key string, val []byte) error{
 	sign, err := s.priv.Sign(val)
 	if err != nil{return err}
 	sd := &signedData{val, sign}
 	msd, err := pv.Marshal(sd)
 	if err != nil{return err}
 
-	key, err := makeSignatureKey(s.pub)
+	sKey, err := makeSignatureKey(s.pub)
 	if err != nil{return err}
 
-	return s.updatableStore.Put(key, msd)
+	key = sKey + "/" + key
+	return s.logStore.Put(key, msd)
 }
 func (s *signatureStore) GetRaw(key string) ([]byte, error){
-	return s.updatableStore.Get(key)
+	rs, err := s.logStore.Query(query.Query{
+		Prefix: "/"+key,
+	})
+	if err != nil{return nil, err}
+	r := <-rs.Next()
+	rs.Close()
+	return r.Value, nil
 }
 func (s *signatureStore) Get(key string) ([]byte, error){
-	msd, err := s.updatableStore.Get(key)
+	msd, err := s.GetRaw(key)
 	sd, err := UnmarshalSignedData(msd)
 	if err != nil{return nil, err}
 	return sd.Value, nil
 }
 func (s *signatureStore) GetRawSize(key string) (int, error){
-	return s.updatableStore.GetSize(key)
+	rs, err := s.logStore.Query(query.Query{
+		Prefix: "/"+key,
+		ReturnsSizes: true,
+	})
+	if err != nil{return -1, err}
+	r := <-rs.Next()
+	rs.Close()
+	return r.Size, nil
 }
 func (s *signatureStore) GetSize(key string) (int, error){
 	val, err := s.Get(key)
 	if err != nil{return -1, err}
 	return len(val), nil
 }
+func (s *signatureStore) Has(key string) (bool, error){
+	rs, err := s.logStore.Query(query.Query{
+		Prefix: "/"+key,
+		KeysOnly: true,
+		Limit: 1,
+	})
+	if err != nil{return false, err}
+	resList, err := rs.Rest()
+	rs.Close()
+	return len(resList) > 0, err
+}
+
+

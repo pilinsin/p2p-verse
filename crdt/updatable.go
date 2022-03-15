@@ -5,18 +5,19 @@ import(
 	"strings"
 	"encoding/base64"
 
-	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 )
 
 //a<b:-1, a==b:0, a>b:1
 type updatableOrder struct{}
 func (o updatableOrder) Compare(a, b query.Entry) int{
-	takey := strings.Split(a.Key, "/")[2]
-	ma, err := base64.StdEncoding.DecodeString(takey)
+	keys := strings.Split(strings.TrimPrefix(a.Key, "/"), "/")
+	taKey := keys[len(keys)-1]
+	ma, err := base64.StdEncoding.DecodeString(taKey)
 	if err != nil{return 1}
-	tbkey := strings.Split(b.Key, "/")[2]
-	mb, err := base64.StdEncoding.DecodeString(tbkey)
+	keys = strings.Split(strings.TrimPrefix(b.Key, "/"), "/")
+	tbKey := keys[len(keys)-1]
+	mb, err := base64.StdEncoding.DecodeString(tbKey)
 	if err != nil{return -1}
 
 	ta := time.Time{}
@@ -32,7 +33,8 @@ func (o updatableOrder) Compare(a, b query.Entry) int{
 
 type updatableValidator struct{}
 func (v *updatableValidator) Validate(key string, val []byte) bool{
-	tKey := strings.Split(key, "/")[2]
+	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
+	tKey := keys[len(keys)-1]
 	tb, err := base64.StdEncoding.DecodeString(tKey)
 	if err != nil{return false}
 
@@ -58,12 +60,11 @@ func (s *updatableStore) Put(key string, val []byte) error{
 	if err != nil{return err}
 	tKey := base64.StdEncoding.EncodeToString(tb)
 
-	//ds.NewKey(key) => "/"+key
-	dsKey := ds.NewKey(key).ChildString("/"+tKey)
-	return s.dt.Put(s.ctx, dsKey, val)
+	key += "/"+tKey
+	return s.logStore.Put(key, val)
 }
 func (s *updatableStore) Get(key string) ([]byte, error){
-	rs, err := s.dt.Query(s.ctx, query.Query{
+	rs, err := s.logStore.Query(query.Query{
 		Prefix: "/"+key,
 		Orders: []query.Order{updatableOrder{}},
 	})
@@ -73,7 +74,7 @@ func (s *updatableStore) Get(key string) ([]byte, error){
 	return r.Value, nil
 }
 func (s *updatableStore) GetSize(key string) (int, error){
-	rs, err := s.dt.Query(s.ctx, query.Query{
+	rs, err := s.logStore.Query(query.Query{
 		Prefix: "/"+key,
 		Orders: []query.Order{updatableOrder{}},
 		ReturnsSizes: true,
@@ -84,15 +85,16 @@ func (s *updatableStore) GetSize(key string) (int, error){
 	return r.Size, nil
 }
 func (s *updatableStore) Has(key string) (bool, error){
-	rs, err := s.dt.Query(s.ctx, query.Query{
+	rs, err := s.logStore.Query(query.Query{
 		Prefix: "/"+key,
 		Orders: []query.Order{updatableOrder{}},
 		KeysOnly: true,
+		Limit: 1,
 	})
 	if err != nil{return false, err}
-	r := <-rs.Next()
+	resList, err := rs.Rest()
 	rs.Close()
-	return r.Value != nil, nil
+	return len(resList) > 0, err
 }
 func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
 	var q query.Query
@@ -102,5 +104,5 @@ func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
 		q = qs[0]
 	}
 	q.Orders = append(q.Orders, updatableOrder{})
-	return s.dt.Query(s.ctx, q)
+	return s.logStore.Query(q)
 }

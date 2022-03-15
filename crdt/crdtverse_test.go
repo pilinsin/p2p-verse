@@ -28,15 +28,15 @@ func TestCRDT(t *testing.T){
 	h0, err := pv.SampleHost()
 	checkError(t, err)
 	priv0 := h0.Peerstore().PrivKey(h0.ID())
-	db0, err := NewVerse("a", false, h0, bAddrInfo).NewSignatureStore("testDB", priv0)
+	db0, err := NewVerse("a", false, h0, bAddrInfo).NewUpdatableSignatureStore("testDB", priv0, priv0.GetPublic())
 	checkError(t, err)
 	defer db0.Close()
-	checkError(t, db0.Put([]byte("meow meow ^.^")))
+	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 
 	h1, err := pv.SampleHost()
 	checkError(t, err)
 	priv1 := h1.Peerstore().PrivKey(h1.ID())
-	db1, err := NewVerse("b", false, h1, bAddrInfo).NewSignatureStore("testDB", priv1)
+	db1, err := NewVerse("b", false, h1, bAddrInfo).NewUpdatableSignatureStore("testDB", priv1, priv1.GetPublic())
 	checkError(t, err)
 	defer db1.Close()
 
@@ -46,16 +46,16 @@ func TestCRDT(t *testing.T){
 	t.Log("h1 connected peers:", h1.Network().Peers())
 
 	checkError(t, db1.Sync())
-	v, err := db1.Get(h0.ID().Pretty())
+	v, err := db1.Get(h0.ID().Pretty()+"/aaa")
 	checkError(t, err)
 	t.Log(string(v))
 
-	checkError(t, db0.Put([]byte("meow meow 2 ^.^")))
+	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 
 	<-time.Tick(time.Minute)
 
 	checkError(t, db1.Sync())
-	v2, err := db1.Get(h0.ID().Pretty())
+	v2, err := db1.Get(h0.ID().Pretty()+"/aaa")
 	checkError(t, err)
 	t.Log(string(v2))
 

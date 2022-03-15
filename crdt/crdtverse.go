@@ -53,7 +53,6 @@ func (v *logValidator) Select(key string, vals [][]byte) bool{
 //signatureValidator
 //accessValidator(Element.Value.Key)?
 
-
 type logStore struct{
 	ctx context.Context
 	cancel func()
