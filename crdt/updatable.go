@@ -13,11 +13,11 @@ type updatableOrder struct{}
 func (o updatableOrder) Compare(a, b query.Entry) int{
 	keys := strings.Split(strings.TrimPrefix(a.Key, "/"), "/")
 	taKey := keys[len(keys)-1]
-	ma, err := base64.StdEncoding.DecodeString(taKey)
+	ma, err := base64.URLEncoding.DecodeString(taKey)
 	if err != nil{return 1}
 	keys = strings.Split(strings.TrimPrefix(b.Key, "/"), "/")
 	tbKey := keys[len(keys)-1]
-	mb, err := base64.StdEncoding.DecodeString(tbKey)
+	mb, err := base64.URLEncoding.DecodeString(tbKey)
 	if err != nil{return -1}
 
 	ta := time.Time{}
@@ -35,12 +35,14 @@ type updatableValidator struct{}
 func (v *updatableValidator) Validate(key string, val []byte) bool{
 	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
 	tKey := keys[len(keys)-1]
-	tb, err := base64.StdEncoding.DecodeString(tKey)
+	tb, err := base64.URLEncoding.DecodeString(tKey)
 	if err != nil{return false}
 
 	t := time.Time{}
 	if err := t.UnmarshalJSON(tb); err != nil{return false}
-	return t.Location().String() == time.UTC.String()
+	isUTC := t.Location().String() == time.UTC.String()
+	isBefore := t.Before(time.Now().UTC())
+	return isUTC && isBefore
 }
 func (v *updatableValidator) Select(key string, vals [][]byte) bool{
 	return len(vals) == 1
@@ -50,15 +52,19 @@ func (v *updatableValidator) Select(key string, vals [][]byte) bool{
 type updatableStore struct{
 	*logStore
 }
-func (cv *crdtVerse) NewUpdatableStore(name string) (*updatableStore, error){
+func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (iStore, error){
 	st, err := cv.newCRDT(name, &updatableValidator{})
 	if err != nil{return nil, err}
 	return &updatableStore{st}, nil
 }
-func (s *updatableStore) Put(key string, val []byte) error{
+func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (iStore, error){
+	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
+	return cv.NewUpdatableStore(addr)
+}
+func (s *updatableStore) Put(key string, val []byte) error{	
 	tb, err := time.Now().UTC().MarshalJSON()
 	if err != nil{return err}
-	tKey := base64.StdEncoding.EncodeToString(tb)
+	tKey := base64.URLEncoding.EncodeToString(tb)
 
 	key += "/"+tKey
 	return s.logStore.Put(key, val)
@@ -67,6 +73,7 @@ func (s *updatableStore) Get(key string) ([]byte, error){
 	rs, err := s.logStore.Query(query.Query{
 		Prefix: "/"+key,
 		Orders: []query.Order{updatableOrder{}},
+		Limit: 1,
 	})
 	if err != nil{return nil, err}
 	r := <-rs.Next()
@@ -78,6 +85,7 @@ func (s *updatableStore) GetSize(key string) (int, error){
 		Prefix: "/"+key,
 		Orders: []query.Order{updatableOrder{}},
 		ReturnsSizes: true,
+		Limit: 1,
 	})
 	if err != nil{return -1, err}
 	r := <-rs.Next()

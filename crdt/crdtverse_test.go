@@ -4,6 +4,7 @@ import(
 	"testing"
 	"time"
 
+	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -25,46 +26,56 @@ func TestCRDT(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	h0, err := pv.SampleHost()
-	checkError(t, err)
-	priv0 := h0.Peerstore().PrivKey(h0.ID())
-	db0, err := NewVerse("a", false, h0, bAddrInfo).NewUpdatableSignatureStore("testDB", priv0, priv0.GetPublic())
+	v0 := NewVerse(pv.SampleHost, "a", false, false, bAddrInfo)
+	opts0 := &StoreOpts{}
+	db0, err := v0.NewStore("testDB", "updatableSignature", opts0)
 	checkError(t, err)
 	defer db0.Close()
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 
-	h1, err := pv.SampleHost()
-	checkError(t, err)
-	priv1 := h1.Peerstore().PrivKey(h1.ID())
-	db1, err := NewVerse("b", false, h1, bAddrInfo).NewUpdatableSignatureStore("testDB", priv1, priv1.GetPublic())
+	v1 := NewVerse(pv.SampleHost, "b", false, false, bAddrInfo)
+	opts1 := &StoreOpts{}
+	db1, err := v1.NewStore("testDB", "updatableSignature", opts1)
 	checkError(t, err)
 	defer db1.Close()
 
-	t.Log("h0 id             : ", h0.ID())
-	t.Log("h0 connected peers:", h0.Network().Peers())
-	t.Log("h1 id             : ", h1.ID())
-	t.Log("h1 connected peers:", h1.Network().Peers())
+	<-time.Tick(time.Second*30)
 
 	checkError(t, db1.Sync())
-	v, err := db1.Get(h0.ID().Pretty()+"/aaa")
+	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
 	checkError(t, err)
-	t.Log(string(v))
+	t.Log(string(v10))
+	
+	rs1, err := db1.Query(query.Query{
+		Filters: []query.Filter{dataFilter{"aaa"}},
+		Limit:1,
+	})
+	checkError(t, err)
+	v := <-rs1.Next()
+	rs1.Close()
+	sd, err := UnmarshalSignedData(v.Value)
+	checkError(t, err)
+	t.Log(string(sd.Value))
 
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 
 	<-time.Tick(time.Minute)
 
 	checkError(t, db1.Sync())
-	v2, err := db1.Get(h0.ID().Pretty()+"/aaa")
+	v12, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
 	checkError(t, err)
-	t.Log(string(v2))
+	t.Log(string(v12))
 
-	rs, err := db1.Query()
+	rs12, err := db1.Query(query.Query{
+		Filters: []query.Filter{dataFilter{"aaa"}},
+	})
 	checkError(t, err)
-	defer rs.Close()
-	for res := range rs.Next(){
-		sd, err := UnmarshalSignedData(res.Value)
-		if err != nil{continue}
-		t.Log(string(sd.Value))
+	for v2 := range rs12.Next(){
+		sd2, err := UnmarshalSignedData(v2.Value)
+		checkError(t, err)
+		t.Log(string(sd2.Value))
 	}
+
+	<- time.Tick(time.Second*10)
+	t.Log("finished")
 }

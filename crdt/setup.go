@@ -5,9 +5,11 @@ import(
 	"errors"
 	"bytes"
 	"time"
+	"path/filepath"
 
 	proto "google.golang.org/protobuf/proto"
 
+	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2ppubsub "github.com/libp2p/go-libp2p-pubsub"
 	pv "github.com/pilinsin/p2p-verse"
@@ -26,25 +28,26 @@ type storeParams struct{
 	dStore ds.Datastore
 	dt *crdt.Datastore
 }
-func (cv *crdtVerse) setupStore(name string, v validator) (*storeParams, error){
-	dht, err := pv.NewDHT(cv.h)
+func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v iValidator) (*storeParams, error){
+	dht, err := pv.NewDHT(h)
 	if err != nil{return nil, err}
 
-	gossip, err := p2ppubsub.NewGossipSub(cv.ctx, cv.h)
+	dirAddr := filepath.Join(cv.dirPath, name)
+	stOpts := badger.DefaultOptions
+	stOpts.InMemory = cv.useMemory
+	store, err := badger.NewDatastore(dirAddr, &stOpts)
 	if err != nil{return nil, err}
 
-	store, err := badger.NewDatastore(cv.dirPath, &badger.DefaultOptions)
+	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
 	if err != nil{return nil, err}
 
-	ipfs, err := ipfslt.New(cv.ctx, store, cv.h, dht.DHT(), nil)
+	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
 	if err != nil{return nil, err}
-
 	valid := validatorFunc(v, store, ds.NewKey(name), ipfs)
 	if err := gossip.RegisterTopicValidator(name, valid); err != nil{
 		return nil, err
 	}
-
-	psbc, err := crdt.NewPubSubBroadcaster(cv.ctx, gossip, name)
+	psbc, err := crdt.NewPubSubBroadcaster(ctx, gossip, name)
 	if err != nil{return nil, err}
 
 	opts := crdt.DefaultOptions()
@@ -60,7 +63,7 @@ func (cv *crdtVerse) setupStore(name string, v validator) (*storeParams, error){
 }
 
 
-func validatorFunc(v validator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator{
+func validatorFunc(v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator{
 	return func(ctx context.Context, pid peer.ID, msg *p2ppubsub.Message) bool{
 		deltas, err := msgToDeltas(ctx, msg, dg)
 		if err != nil{return false}
@@ -77,7 +80,7 @@ func validatorFunc(v validator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionD
 	}
 }
 
-func validate(key string, val []byte, v validator, d ds.Datastore, ns ds.Key) bool{
+func validate(key string, val []byte, v iValidator, d ds.Datastore, ns ds.Key) bool{
 	if ok := v.Validate(key, val); !ok{return false}
 	
 	vkey := ns.ChildString("/k").ChildString(key).ChildString("/v")
