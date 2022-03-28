@@ -52,6 +52,7 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 	if err != nil{return nil, err}
 	s := &updatableSignatureStore{&updatableStore{st}, priv, pub, ac, tc}
 	if tc != nil{
+		tc.dStore = s
 		tc.AutoGrant()
 	}
 	return s, nil
@@ -69,6 +70,7 @@ func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts
 			tc, err := cv.LoadTimeController(addrs[2], opts...)
 			if err != nil{return nil, err}
 			s.(*updatableSignatureStore).tc = tc
+			tc.dStore = s.(*updatableSignatureStore)
 			tc.AutoGrant()
 		}
 	}
