@@ -5,10 +5,13 @@ import(
 	"time"
 	"encoding/json"
 	"sort"
+	"io"
 
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2ppubsub "github.com/libp2p/go-libp2p-pubsub"
+	pb "github.com/pilinsin/p2p-verse/pubsub/pb"
+	proto "google.golang.org/protobuf/proto"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -17,11 +20,17 @@ import(
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery -> 
 // -> JoinTopic -> Subscribe -> Publish/Get
 
+type hostGenerator func(...io.Reader) (host.Host, error)
+
 type api struct{
 	ctx context.Context
 	ps *p2ppubsub.PubSub
 }
-func NewPubSub(ctx context.Context, self host.Host, bootstraps ...peer.AddrInfo) (*api, error){
+func NewPubSub(hGen hostGenerator, bootstraps ...peer.AddrInfo) (*api, error){
+	self, err := hGen()
+	if err != nil{return nil, err}
+
+	ctx := context.Background()
 	gossip, err := p2ppubsub.NewGossipSub(ctx, self)
 	if err != nil{return nil, err}
 	if err := pv.Discovery(self, "pubsub:ejvoaenvaeo;vn;aeo", bootstraps); err != nil{
@@ -82,8 +91,12 @@ func (m *message) unmarshal(bs []byte) error{
 	return nil
 }
 func (r *room) Publish(data []byte) error{
-	mes := message{data, time.Now().UTC()}
-	mm, err := mes.marshal()
+	t, _ := time.Now().UTC().MarshalBinary()
+	mes := &pb.Message{
+		Data: data,
+		Time: t,
+	}
+	mm, err := proto.Marshal(mes)
 	if err != nil{return err}
 	return r.topic.Publish(r.ctx, mm)
 }
@@ -93,10 +106,12 @@ type recievedMessage struct{
 	Time time.Time
 }
 func convertMessage(mes *p2ppubsub.Message) (*recievedMessage, error){
-	rawMes := &message{}
-	if err := rawMes.unmarshal(mes.Data); err != nil{return nil, err}
-	rMes := &recievedMessage{mes, rawMes.Time()}
-	rMes.Data = rawMes.Data()
+	rawMes := &pb.Message{}
+	if err := proto.Unmarshal(mes.GetData(), rawMes); err != nil{return nil, err}
+	t := time.Time{}
+	if err := t.UnmarshalBinary(rawMes.GetTime()); err != nil{return nil, err}
+	rMes := &recievedMessage{mes, t}
+	rMes.Data = rawMes.GetData()
 	return rMes, nil
 }
 func (r *room) Get() (*recievedMessage, error){

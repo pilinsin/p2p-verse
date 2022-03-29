@@ -5,9 +5,7 @@ import(
 
 	"fmt"
 	"time"
-	"context"
 	pv "github.com/pilinsin/p2p-verse"
-	"github.com/pilinsin/go-libp2p-i2p"
 )
 func checkError(t *testing.T, err error, args ...interface{}){
 	if err != nil{
@@ -32,9 +30,7 @@ func TestPubSub(t *testing.T){
 
 	<-time.Tick(time.Second*5)
 
-	h0, err0 := pv.SampleHost()
-	checkError(t, err0)
-	ps0, err01 := NewPubSub(context.Background(), h0, bAddrInfo)
+	ps0, err01 := NewPubSub(pv.SampleHost, bAddrInfo)
 	checkError(t, err01)
 	tpc0, err02 := ps0.JoinTopic("test topic")
 	checkError(t, err02)
@@ -55,19 +51,10 @@ func TestPubSub(t *testing.T){
 		}
 	}()
 
-	<-time.Tick(time.Second*5)
+	<-time.Tick(time.Second*10)
 
-	h1, err1 := pv.SampleHost()
-	checkError(t, err1)
-	ps1, err11 := NewPubSub(context.Background(), h1, bAddrInfo)
+	ps1, err11 := NewPubSub(pv.SampleHost, bAddrInfo)
 	checkError(t, err11)
-
-	t.Log("h0 id             : ", h0.ID())
-	t.Log("h0 address        : ", h0.Addrs())
-	t.Log("h0 connected peers:", h0.Network().Peers())
-	t.Log("h1 id             : ", h1.ID())
-	t.Log("h0 address        :", h1.Addrs())
-	t.Log("h1 connected peers:", h1.Network().Peers())
 
 	tpc1, err12 := ps1.JoinTopic("test topic")
 	checkError(t, err12)
