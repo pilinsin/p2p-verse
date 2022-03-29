@@ -1,0 +1,13 @@
+syntax = "proto3";
+package pb;
+option go_package = "./";
+
+
+message TimeMessage{
+	string 	name	= 1;
+	bytes 	begin	= 2;
+	bytes	end		= 3;
+	int64	eps 	= 4;
+	int64	cool	= 5;
+	int32	n 		= 6;
+}

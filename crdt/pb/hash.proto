@@ -1,0 +1,9 @@
+syntax = "proto3";
+package pb;
+option go_package = "./";
+
+message HashData{
+	string	baseHash	= 1;
+	bytes 	salt		= 2;
+	bytes 	value		= 3;
+}

@@ -5,7 +5,8 @@ import(
 	"crypto/rand"
 	"strings"
 
-	pv "github.com/pilinsin/p2p-verse"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	proto "google.golang.org/protobuf/proto"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	query "github.com/ipfs/go-datastore/query"
 )
@@ -108,8 +109,11 @@ func (s *updatableSignatureStore) withinTime(key string) error{
 func (s *updatableSignatureStore) Put(key string, val []byte) error{
 	sign, err := s.priv.Sign(val)
 	if err != nil{return err}
-	sd := &signedData{val, sign}
-	msd, err := pv.Marshal(sd)
+	sd := &pb.SignatureData{
+		Value: val,
+		Sign: sign,
+	}
+	msd, err := proto.Marshal(sd)
 	if err != nil{return err}
 
 	sKey := PubKeyToStr(s.pub)
@@ -124,9 +128,10 @@ func (s *updatableSignatureStore) Get(key string) ([]byte, error){
 	if err := s.withinTime(key); err != nil{return nil, err}
 
 	msd, err := s.updatableStore.Get(key)
-	sd, err := UnmarshalSignedData(msd)
 	if err != nil{return nil, err}
-	return sd.Value, nil
+	sd := &pb.SignatureData{}
+	if err := proto.Unmarshal(msd, sd); err != nil{return nil, err}
+	return sd.GetValue(), nil
 }
 func (s *updatableSignatureStore) GetSize(key string) (int, error){
 	if err := s.verify(key); err != nil{return -1, err}

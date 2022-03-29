@@ -11,7 +11,7 @@ import(
 	"golang.org/x/crypto/argon2"
 
 	query "github.com/ipfs/go-datastore/query"
-	pv "github.com/pilinsin/p2p-verse"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 )
 
 type tcFilter struct{
@@ -66,7 +66,6 @@ func getTimeOpts(opts ...*StoreOpts) *accessController{
 	return opts[0].Ac
 }
 
-
 type timeController struct{
 	ctx context.Context
 	cancel func()
@@ -95,31 +94,18 @@ func (cv *crdtVerse) LoadTimeController(tAddr string, opts ...*StoreOpts)(*timeC
 
 	m, err := base64.URLEncoding.DecodeString(tAddr)
 	if err != nil{return nil, err}
-	tmp := struct{
-		Name string
-		Begin time.Time
-		End time.Time
-		Eps time.Duration
-		Cool time.Duration
-		N int
-	}{}
-	if err := pv.Unmarshal(m, &tmp); err != nil{return nil, err}
+	tp := &pb.TimeParams{}
+	if err := tp.Unmarshal(m); err != nil{return nil, err}
 
-	s, err := cv.NewUpdatableSignatureStore(tmp.Name, opts...)
+	s, err := cv.NewUpdatableSignatureStore(tp.Name, opts...)
 	if err != nil{return nil, err}
 	usst := s.(*updatableSignatureStore)
 	ctx, cancel := context.WithCancel(context.Background())
-	return &timeController{ctx, cancel, nil, usst, tmp.Name, tmp.Begin, tmp.End, tmp.Eps, tmp.Cool, tmp.N}, nil
+	return &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}, nil
 }
 func (tc *timeController) Address() string{
-	m, err := pv.Marshal(struct{
-		Name string
-		Begin time.Time
-		End time.Time
-		Eps time.Duration
-		Cool time.Duration
-		N int
-	}{tc.name, tc.begin, tc.end, tc.eps, tc.cooldown, tc.n})
+	tp := &pb.TimeParams{tc.name, tc.begin, tc.end, tc.eps, tc.cooldown, tc.n}
+	m, err := tp.Marshal()
 	if err != nil{return ""}
 	return base64.URLEncoding.EncodeToString(m)
 }

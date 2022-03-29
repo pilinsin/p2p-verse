@@ -51,11 +51,9 @@ func TestCRDT(t *testing.T){
 		Limit:1,
 	})
 	checkError(t, err)
-	v := <-rs1.Next()
-	rs1.Close()
-	sd, err := UnmarshalSignedData(v.Value)
+	resList, err := rs1.Rest()
 	checkError(t, err)
-	t.Log(string(sd.Value))
+	t.Log(len(resList))
 
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 
@@ -70,12 +68,11 @@ func TestCRDT(t *testing.T){
 		Filters: []query.Filter{dataFilter{"aaa"}},
 	})
 	checkError(t, err)
-	for v2 := range rs12.Next(){
-		sd2, err := UnmarshalSignedData(v2.Value)
-		checkError(t, err)
-		t.Log(string(sd2.Value))
-	}
+	resList2, err := rs12.Rest()
+	checkError(t, err)
+	t.Log(len(resList2))
 
-	<- time.Tick(time.Second*10)
+
+	<- time.Tick(time.Second*3)
 	t.Log("finished")
 }

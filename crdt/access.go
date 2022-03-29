@@ -7,7 +7,8 @@ import(
 	"crypto/rand"
 	"time"
 
-	pv "github.com/pilinsin/p2p-verse"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	proto "google.golang.org/protobuf/proto"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	query "github.com/ipfs/go-datastore/query"
 	"golang.org/x/crypto/argon2"
@@ -82,21 +83,17 @@ func (s *accessController) put(key string, val []byte) error{
 func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, error){
 	m, err := base64.URLEncoding.DecodeString(acAddr)
 	if err != nil{return nil, err}
-	tmp := struct{
-		P string
-		N string
-		S []byte
-	}{}
-	if err := pv.Unmarshal(m, &tmp); err != nil{return nil, err}
+	ap := &pb.AccessParams{}
+	if err := proto.Unmarshal(m, ap); err != nil{return nil, err}
 
-	pub, err := StrToPubKey(tmp.P)
+	pub, err := StrToPubKey(ap.GetPid())
 	if err != nil{
 		pub = nil
 	}
-	st, err := cv.NewSignatureStore(tmp.N, &StoreOpts{Priv: nil, Pub: pub})
+	st, err := cv.NewSignatureStore(ap.GetName(), &StoreOpts{Priv: nil, Pub: pub})
 	if err != nil{return nil, err}
 	sgst := st.(*signatureStore)
-	acst := &accessController{sgst, tmp.N, tmp.S}
+	acst := &accessController{sgst, ap.GetName(), ap.GetSalt()}
 	if err := acst.Sync(); err != nil{
 		acst.Close()
 		return nil, err
@@ -108,10 +105,11 @@ func (s *accessController) Close(){
 }
 func (s *accessController) Address() string{
 	pid := PubKeyToStr(s.store.pub)
-	m, err := pv.Marshal(struct{
-		P, N string
-		S []byte
-	}{pid, s.name, s.salt})
+	m, err := proto.Marshal(&pb.AccessParams{
+		Pid: pid,
+		Name: s.name,
+		Salt: s.salt,
+	})
 	if err != nil{return ""}
 	return base64.URLEncoding.EncodeToString(m)
 }

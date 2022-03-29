@@ -6,23 +6,13 @@ import(
 	"strings"
 	"crypto/rand"
 
-	pv "github.com/pilinsin/p2p-verse"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	proto "google.golang.org/protobuf/proto"
 	query "github.com/ipfs/go-datastore/query"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 )
 
-type signedData struct{
-	Value []byte
-	Sign []byte
-}
-func UnmarshalSignedData(m []byte) (*signedData, error){
-	sd := &signedData{}
-	if err := pv.Unmarshal(m, sd); err != nil{
-		return nil, err
-	}
-	return sd, nil
-}
 
 func PubKeyToStr(vk p2pcrypto.PubKey) string{
 	id, err := peer.IDFromPublicKey(vk)
@@ -46,9 +36,9 @@ func (v *signatureValidator) Validate(key string, val []byte) bool{
 	vk, err := StrToPubKey(keys[0])
 	if err != nil{return false}
 
-	sd, err := UnmarshalSignedData(val)
-	if err != nil{return false}
-	ok, err := vk.Verify(sd.Value, sd.Sign)
+	sd := &pb.SignatureData{}
+	if err := proto.Unmarshal(val, sd); err != nil{return false}
+	ok, err := vk.Verify(sd.GetValue(), sd.GetSign())
 	return err == nil && ok
 }
 
@@ -110,8 +100,11 @@ func (s *signatureStore) verify(key string) error{
 func (s *signatureStore) Put(key string, val []byte) error{
 	sign, err := s.priv.Sign(val)
 	if err != nil{return err}
-	sd := &signedData{val, sign}
-	msd, err := pv.Marshal(sd)
+	sd := &pb.SignatureData{
+		Value: val,
+		Sign: sign,
+	}
+	msd, err := proto.Marshal(sd)
 	if err != nil{return err}
 
 	sKey := PubKeyToStr(s.pub)
@@ -136,9 +129,10 @@ func (s *signatureStore) Get(key string) ([]byte, error){
 	if err := s.verify(key); err != nil{return nil, err}
 
 	msd, err := s.getRaw(key)
-	sd, err := UnmarshalSignedData(msd)
 	if err != nil{return nil, err}
-	return sd.Value, nil
+	sd := &pb.SignatureData{}
+	if err := proto.Unmarshal(msd, sd); err != nil{return nil, err}
+	return sd.GetValue(), nil
 }
 func (s *signatureStore) GetSize(key string) (int, error){
 	if err := s.verify(key); err != nil{return -1, err}
@@ -157,9 +151,9 @@ func (s *signatureStore) Has(key string) (bool, error){
 		Limit: 1,
 	})
 	if err != nil{return false, err}
-	rsSize := len(rs.Next())
+	resList, err := rs.Rest()
 	rs.Close()
-	return rsSize > 0, nil
+	return len(resList) > 0, err
 }
 func (s *signatureStore) Query(qs ...query.Query) (query.Results, error){
 	var q query.Query

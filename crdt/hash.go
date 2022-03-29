@@ -7,22 +7,11 @@ import(
 	"crypto/rand"
 
 	pv "github.com/pilinsin/p2p-verse"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	proto "google.golang.org/protobuf/proto"
 	"golang.org/x/crypto/argon2"
 	query "github.com/ipfs/go-datastore/query"
 )
-
-type hashData struct{
-	BaseHash string
-	Salt []byte
-	Value []byte
-}
-func UnmarshalHashData(m []byte) (*hashData, error){
-	hsv := &hashData{}
-	if err := pv.Unmarshal(m, hsv); err != nil{
-		return nil, err
-	}
-	return hsv, nil
-}
 
 
 func MakeHashKey(bHashStr string, salt []byte) string{
@@ -33,10 +22,10 @@ func MakeHashKey(bHashStr string, salt []byte) string{
 
 type hashValidator struct{}
 func (v *hashValidator) Validate(key string, val []byte) bool{
-	data := hashData{}
-	if err := pv.Unmarshal(val, &data); err != nil{return false}
+	data := &pb.HashData{}
+	if err := pv.Unmarshal(val, data); err != nil{return false}
 
-	hKey := MakeHashKey(data.BaseHash, data.Salt)
+	hKey := MakeHashKey(data.GetBaseHash(), data.GetSalt())
 	return key[1:] == hKey
 }
 func (v *hashValidator) Select(key string, vals [][]byte) bool{
@@ -100,8 +89,12 @@ func (s *hashStore) Put(bHashStr string, val []byte) error{
 	key := MakeHashKey(bHashStr, s.salt)
 	if err := s.verify(key); err != nil{return err}
 
-	hd := &hashData{bHashStr, s.salt, val}
-	m, err := pv.Marshal(hd)
+	hd := &pb.HashData{
+		BaseHash: bHashStr,
+		Salt: s.salt,
+		Value: val,
+	}
+	m, err := proto.Marshal(hd)
 	if err != nil{return err}
 	return s.logStore.Put(key, m)
 }
@@ -110,9 +103,9 @@ func (s *hashStore) Get(key string) ([]byte, error){
 
 	m, err := s.logStore.Get(key)
 	if err != nil{return nil, err}
-	hd := hashData{}
-	if err := pv.Unmarshal(m, &hd); err != nil{return nil, err}
-	return hd.Value, nil
+	hd := &pb.HashData{}
+	if err := proto.Unmarshal(m, hd); err != nil{return nil, err}
+	return hd.GetValue(), nil
 }
 func (s *hashStore) GetSize(key string) (int, error){
 	if err := s.verify(key); err != nil{return -1, err}
