@@ -10,22 +10,6 @@ import(
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	query "github.com/ipfs/go-datastore/query"
 )
-//data key: <pid>/<category>/<tKey>
-//a<b:-1, a==b:0, a>b:1
-type categoryOrder struct{}
-func (o categoryOrder) Compare(a, b query.Entry) int{
-	//extract a key except tKey
-	keys := strings.Split(strings.TrimPrefix(a.Key, "/"), "/")
-	if len(keys) < 3{return 1}
-	aKey := strings.Join(keys[:len(keys)-1], "/")
-	
-	keys = strings.Split(strings.TrimPrefix(b.Key, "/"), "/")
-	if len(keys) < 3{return -1}
-	bKey := strings.Join(keys[:len(keys)-1], "/")
-
-	return strings.Compare(aKey, bKey)
-}
-
 
 func getUpdatableSignatureOpts(opts ...*StoreOpts) (p2pcrypto.PrivKey, p2pcrypto.PubKey, *accessController, *timeController){
 	if len(opts) == 0{
@@ -151,26 +135,8 @@ func (s *updatableSignatureStore) baseQuery(q query.Query) (query.Results, error
 	if s.ac != nil{
 		q.Filters = append(q.Filters, acFilter{s.ac})
 	}
-	q.Orders = append(q.Orders, categoryOrder{})
 
-	rs, err := s.updatableStore.Query(q)
-	if err != nil{return nil, err}
-
-	cKey := ""
-	ch := make(chan query.Result)
-	go func(){
-		defer close(ch)
-		for r := range rs.Next(){
-			keys := strings.Split(strings.TrimPrefix(r.Key, "/"), "/")
-			if len(keys) < 3{continue}
-			cKey2 := strings.Join(keys[:len(keys)-1], "/")
-			if cKey != cKey2{
-				ch <- r
-				cKey = cKey2
-			}
-		}
-	}()
-	return query.ResultsWithChan(query.Query{}, ch), nil
+	return s.updatableStore.Query(q)
 }
 func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error){
 	var q query.Query
