@@ -77,7 +77,7 @@ func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (iStore, e
 	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
 	return cv.NewUpdatableStore(addr)
 }
-func (s *updatableStore) Put(key string, val []byte) error{	
+func (s *updatableStore) Put(key string, val []byte) error{
 	tb, err := time.Now().UTC().MarshalJSON()
 	if err != nil{return err}
 	tKey := base64.URLEncoding.EncodeToString(tb)

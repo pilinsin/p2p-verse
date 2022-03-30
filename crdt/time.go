@@ -25,19 +25,6 @@ func (f tcFilter) Filter(e query.Entry) bool{
 
 const proofKey = "time-proof"
 
-//data key: <pid>/<category>/<tKey>
-type dataFilter struct{
-	category string
-}
-func (f dataFilter) Filter(e query.Entry) bool{
-	keys := strings.Split(strings.TrimPrefix(e.Key, "/"), "/")
-	if len(keys) < 3{return false}
-	if keys[1] == proofKey{return false}
-
-	if f.category == ""{return true}
-	return keys[1] == f.category
-}
-
 //proof key: <pid>/<proofKey>/<data key hash>/<tKey>
 type proofFilter struct{
 	keyHash string
@@ -115,7 +102,6 @@ func (tc *timeController) Close(){
 
 func (tc *timeController) getAllNewData() (<-chan string, error){
 	rs, err := tc.dStore.baseQuery(query.Query{
-		Filters: []query.Filter{dataFilter{}},
 		KeysOnly: true,
 	})
 	if err != nil{return nil, err}

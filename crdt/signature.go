@@ -1,7 +1,6 @@
 package crdtverse
 
 import(
-	"fmt"
 	"errors"
 	"strings"
 	"crypto/rand"
@@ -112,7 +111,6 @@ func (s *signatureStore) Put(key string, val []byte) error{
 	if err := s.verify(sKey); err != nil{return err}
 
 	key = sKey + "/" + key
-	fmt.Println("put:", key)
 	return s.logStore.Put(key, msd)
 }
 func (s *signatureStore) getRaw(key string) ([]byte, error){
@@ -144,7 +142,6 @@ func (s *signatureStore) GetSize(key string) (int, error){
 func (s *signatureStore) Has(key string) (bool, error){
 	if err := s.verify(key); err != nil{return false, err}
 
-	fmt.Println("has:", key)
 	rs, err := s.logStore.Query(query.Query{
 		Prefix: "/"+key,
 		KeysOnly: true,
@@ -165,6 +162,21 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error){
 	if s.ac != nil{
 		q.Filters = append(q.Filters, acFilter{s.ac})
 	}
-	return s.logStore.Query(q)
+
+	rs, err := s.logStore.Query(q)
+	if err != nil{return nil, err}
+
+	ch := make(chan query.Result)
+	go func(){
+		defer close(ch)
+		for r := range rs.Next(){
+			sd := &pb.SignatureData{}
+			if err := proto.Unmarshal(r.Value, sd); err != nil{continue}
+			
+			r.Value = sd.GetValue()
+			ch <- r
+		}
+	}()
+	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 

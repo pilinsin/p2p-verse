@@ -41,7 +41,6 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 		}
 	}
 
-	//fmt.Println("dht listPeers:", d.RoutingTable().ListPeers())
 	<-time.Tick(5*time.Second)
 	return nil
 }
@@ -99,7 +98,6 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 		}
 	}
 
-	//fmt.Println("dht listPeers:", d.RoutingTable().ListPeers())
 	<-time.Tick(5*time.Second)
 	return nil
 }

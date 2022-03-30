@@ -34,12 +34,11 @@ func TestCRDT(t *testing.T){
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 
 	v1 := NewVerse(pv.SampleHost, "b", false, false, bAddrInfo)
-	opts1 := &StoreOpts{}
-	db1, err := v1.NewStore("testDB", "updatableSignature", opts1)
+	db1, err := v1.NewStore("testDB", "updatableSignature")
 	checkError(t, err)
 	defer db1.Close()
 
-	<-time.Tick(time.Second*30)
+	//<-time.Tick(time.Second)
 
 	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
@@ -47,17 +46,17 @@ func TestCRDT(t *testing.T){
 	t.Log(string(v10))
 	
 	rs1, err := db1.Query(query.Query{
-		Filters: []query.Filter{dataFilter{"aaa"}},
+		Filters: []query.Filter{KeyMatchFilter{"/*/aaa"}},
 		Limit:1,
 	})
 	checkError(t, err)
-	resList, err := rs1.Rest()
-	checkError(t, err)
-	t.Log(len(resList))
+	for res := range rs1.Next(){
+		t.Log(string(res.Value))
+	}
 
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 
-	<-time.Tick(time.Minute)
+	<-time.Tick(time.Second)
 
 	checkError(t, db1.Sync())
 	v12, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
@@ -65,14 +64,13 @@ func TestCRDT(t *testing.T){
 	t.Log(string(v12))
 
 	rs12, err := db1.Query(query.Query{
-		Filters: []query.Filter{dataFilter{"aaa"}},
+		Filters: []query.Filter{KeyMatchFilter{"/*/aaa"}},
 	})
 	checkError(t, err)
-	resList2, err := rs12.Rest()
-	checkError(t, err)
-	t.Log(len(resList2))
+	for res := range rs12.Next(){
+		t.Log(string(res.Value))
+	}
 
 
-	<- time.Tick(time.Second*3)
 	t.Log("finished")
 }

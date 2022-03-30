@@ -136,7 +136,21 @@ func (s *updatableSignatureStore) baseQuery(q query.Query) (query.Results, error
 		q.Filters = append(q.Filters, acFilter{s.ac})
 	}
 
-	return s.updatableStore.Query(q)
+	rs, err := s.updatableStore.Query(q)
+	if err != nil{return nil, err}
+
+	ch := make(chan query.Result)
+	go func(){
+		defer close(ch)
+		for r := range rs.Next(){
+			sd := &pb.SignatureData{}
+			if err := proto.Unmarshal(r.Value, sd); err != nil{continue}
+			
+			r.Value = sd.GetValue()
+			ch <- r
+		}
+	}()
+	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error){
 	var q query.Query
