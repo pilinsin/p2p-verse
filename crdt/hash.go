@@ -6,7 +6,6 @@ import(
 	"encoding/base64"
 	"crypto/rand"
 
-	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
 	"golang.org/x/crypto/argon2"
@@ -23,7 +22,7 @@ func MakeHashKey(bHashStr string, salt []byte) string{
 type hashValidator struct{}
 func (v *hashValidator) Validate(key string, val []byte) bool{
 	data := &pb.HashData{}
-	if err := pv.Unmarshal(val, data); err != nil{return false}
+	if err := proto.Unmarshal(val, data); err != nil{return false}
 
 	hKey := MakeHashKey(data.GetBaseHash(), data.GetSalt())
 	return key[1:] == hKey
@@ -108,15 +107,12 @@ func (s *hashStore) Get(key string) ([]byte, error){
 	return hd.GetValue(), nil
 }
 func (s *hashStore) GetSize(key string) (int, error){
-	if err := s.verify(key); err != nil{return -1, err}
-
 	val, err := s.Get(key)
 	if err != nil{return -1, err}
 	return len(val), nil
 }
 func (s *hashStore) Has(key string) (bool, error){
 	if err := s.verify(key); err != nil{return false, err}
-
 	return s.logStore.Has(key)
 }
 func (s *hashStore) Query(qs ...query.Query) (query.Results, error){
@@ -129,5 +125,20 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error){
 	if s.ac != nil{
 		q.Filters = append(q.Filters, acFilter{s.ac})
 	}
-	return s.logStore.Query(q)
+	rs, err := s.logStore.Query(q)
+	if err != nil{return nil, err}
+	if q.KeysOnly{return rs, nil}
+
+	ch := make(chan query.Result)
+	go func(){
+		defer close(ch)
+		for r := range rs.Next(){
+			hd := &pb.HashData{}
+			if err := proto.Unmarshal(r.Value, hd); err != nil{continue}
+			
+			r.Value = hd.GetValue()
+			ch <- r
+		}
+	}()
+	return query.ResultsWithChan(query.Query{}, ch), nil
 }

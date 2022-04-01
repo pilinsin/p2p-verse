@@ -37,6 +37,7 @@ type accessController struct{
 	store *signatureStore
 	name string
 	salt []byte
+	exmpl string
 }
 func (cv *crdtVerse) NewAccessController(name string, accesses <-chan string, opts ...*StoreOpts) (*accessController, error){
 	salt := getAccessOpts(opts...)
@@ -44,30 +45,26 @@ func (cv *crdtVerse) NewAccessController(name string, accesses <-chan string, op
 	st, err := cv.NewSignatureStore(name, opts...)
 	if err != nil{return nil, err}
 	sgst := st.(*signatureStore)
-	ac := &accessController{sgst, name, salt}
+	ac := &accessController{sgst, name, salt, ""}
 	if err := ac.init(accesses); err != nil{
 		ac.Close()
 		return nil, err
 	}
+	fmt.Println("ac pid:", PubKeyToStr(ac.store.pub))
 	return ac, nil
 }
 func (s *accessController) init(accesses <-chan string) error{
 	if s.store.priv == nil || s.store.pub == nil{
-		s.store.priv, s.store.pub, _ = p2pcrypto.GenerateEd25519Key(rand.Reader)
+		s.store.priv, s.store.pub, _ = p2pcrypto.GenerateEd25519Key(nil)
 	}
 
-	if accesses == nil{
+	for access := range accesses{
 		b := make([]byte, 32)
 		rand.Read(b)
-		if err := s.put("*", b); err != nil{return err}
-	}else{
-		for access := range accesses{
-
-			b := make([]byte, 32)
-			rand.Read(b)
-			if err := s.put(access, b); err != nil{return err}
-		}
+		if err := s.put(access, b); err != nil{return err}
+		s.exmpl = access
 	}
+	
 	fmt.Println("wait for accessController broadcasting (30s)")
 	<-time.Tick(time.Second*30)
 
@@ -75,8 +72,7 @@ func (s *accessController) init(accesses <-chan string) error{
 	return nil
 }
 func (s *accessController) put(key string, val []byte) error{
-	sKey := strings.Split(strings.TrimPrefix(key, "/"), "/")[0]
-	hash := argon2.IDKey([]byte(sKey), s.salt, 1, 64*1024, 4, 64)
+	hash := argon2.IDKey([]byte(key), s.salt, 1, 64*1024, 4, 64)
 	hashKey := base64.URLEncoding.EncodeToString(hash)
 	return s.store.Put(hashKey, val)
 }
@@ -85,7 +81,7 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	if err != nil{return nil, err}
 	ap := &pb.AccessParams{}
 	if err := proto.Unmarshal(m, ap); err != nil{return nil, err}
-
+	fmt.Println("load pid:", ap.GetPid())
 	pub, err := StrToPubKey(ap.GetPid())
 	if err != nil{
 		pub = nil
@@ -93,12 +89,22 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	st, err := cv.NewSignatureStore(ap.GetName(), &StoreOpts{Priv: nil, Pub: pub})
 	if err != nil{return nil, err}
 	sgst := st.(*signatureStore)
-	acst := &accessController{sgst, ap.GetName(), ap.GetSalt()}
-	if err := acst.Sync(); err != nil{
-		acst.Close()
-		return nil, err
+	acst := &accessController{sgst, ap.GetName(), ap.GetSalt(), ap.GetExample()}
+	
+	if acst.exmpl != ""{
+		ticker := time.NewTicker(time.Second*5)
+		for{
+			<-ticker.C
+			if err := acst.Sync(); err != nil{
+				acst.Close()
+				return nil, err
+			}
+			ok, err := acst.Has(acst.exmpl)
+			if ok && err == nil{return acst, nil}
+		}
+	}else{
+		return acst, nil
 	}
-	return acst, nil
 }
 func (s *accessController) Close(){
 	s.store.Close()
@@ -109,6 +115,7 @@ func (s *accessController) Address() string{
 		Pid: pid,
 		Name: s.name,
 		Salt: s.salt,
+		Example: s.exmpl,
 	})
 	if err != nil{return ""}
 	return base64.URLEncoding.EncodeToString(m)
@@ -120,7 +127,6 @@ func (s *accessController) Repair() error{
 	return s.store.Repair()
 }
 func (s *accessController) Has(key string) (bool, error){
-	if ok, err := s.has("*"); ok && err == nil{return true, nil}
 	sKey := strings.Split(strings.TrimPrefix(key, "/"), "/")[0]
 	return s.has(sKey)
 }

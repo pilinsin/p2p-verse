@@ -3,7 +3,6 @@ package crdtverse
 import(
 	"errors"
 	"strings"
-	"crypto/rand"
 
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
@@ -43,11 +42,11 @@ func (v *signatureValidator) Validate(key string, val []byte) bool{
 
 func getSignatureOpts(opts ...*StoreOpts) (p2pcrypto.PrivKey, p2pcrypto.PubKey, *accessController){
 	if len(opts) == 0{
-		priv, pub, _ := p2pcrypto.GenerateEd25519Key(rand.Reader)
+		priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
 		return priv, pub, nil
 	}
-	if opts[0].Priv == nil || opts[0].Pub == nil{
-		opts[0].Priv, opts[0].Pub, _ = p2pcrypto.GenerateEd25519Key(rand.Reader)
+	if opts[0].Pub == nil{
+		opts[0].Priv, opts[0].Pub, _ = p2pcrypto.GenerateEd25519Key(nil)
 	}
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac
 }
@@ -97,6 +96,8 @@ func (s *signatureStore) verify(key string) error{
 }
 
 func (s *signatureStore) Put(key string, val []byte) error{
+	if s.priv == nil{return errors.New("no valid privKey")}
+
 	sign, err := s.priv.Sign(val)
 	if err != nil{return err}
 	sd := &pb.SignatureData{
@@ -113,44 +114,23 @@ func (s *signatureStore) Put(key string, val []byte) error{
 	key = sKey + "/" + key
 	return s.logStore.Put(key, msd)
 }
-func (s *signatureStore) getRaw(key string) ([]byte, error){
-	rs, err := s.logStore.Query(query.Query{
-		Prefix: "/"+key,
-		Limit: 1,
-	})
-	if err != nil{return nil, err}
-	r := <-rs.Next()
-	rs.Close()
-	return r.Value, nil
-}
 func (s *signatureStore) Get(key string) ([]byte, error){
 	if err := s.verify(key); err != nil{return nil, err}
 
-	msd, err := s.getRaw(key)
+	msd, err := s.logStore.Get(key)
 	if err != nil{return nil, err}
 	sd := &pb.SignatureData{}
 	if err := proto.Unmarshal(msd, sd); err != nil{return nil, err}
 	return sd.GetValue(), nil
 }
 func (s *signatureStore) GetSize(key string) (int, error){
-	if err := s.verify(key); err != nil{return -1, err}
-
 	val, err := s.Get(key)
 	if err != nil{return -1, err}
 	return len(val), nil
 }
 func (s *signatureStore) Has(key string) (bool, error){
-	if err := s.verify(key); err != nil{return false, err}
-
-	rs, err := s.logStore.Query(query.Query{
-		Prefix: "/"+key,
-		KeysOnly: true,
-		Limit: 1,
-	})
-	if err != nil{return false, err}
-	resList, err := rs.Rest()
-	rs.Close()
-	return len(resList) > 0, err
+	if err := s.verify(key); err != nil{return false, err}	
+	return s.logStore.Has(key)
 }
 func (s *signatureStore) Query(qs ...query.Query) (query.Results, error){
 	var q query.Query
@@ -165,6 +145,7 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error){
 
 	rs, err := s.logStore.Query(q)
 	if err != nil{return nil, err}
+	if q.KeysOnly{return rs, nil}
 
 	ch := make(chan query.Result)
 	go func(){

@@ -6,4 +6,5 @@ message AccessParams{
 	string 	pid		= 1;
 	string 	name	= 2;
 	bytes	salt	= 3;
+	string	example = 4;
 }

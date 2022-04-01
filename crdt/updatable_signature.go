@@ -1,8 +1,8 @@
 package crdtverse
 
 import(
+	"fmt"
 	"errors"
-	"crypto/rand"
 	"strings"
 
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
@@ -13,11 +13,11 @@ import(
 
 func getUpdatableSignatureOpts(opts ...*StoreOpts) (p2pcrypto.PrivKey, p2pcrypto.PubKey, *accessController, *timeController){
 	if len(opts) == 0{
-		priv, pub, _ := p2pcrypto.GenerateEd25519Key(rand.Reader)
+		priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
 		return priv, pub, nil, nil
 	}
-	if opts[0].Priv == nil || opts[0].Pub == nil{
-		opts[0].Priv, opts[0].Pub, _ = p2pcrypto.GenerateEd25519Key(rand.Reader)
+	if opts[0].Pub == nil{
+		opts[0].Priv, opts[0].Pub, _ = p2pcrypto.GenerateEd25519Key(nil)
 	}
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].Tc
 }
@@ -40,6 +40,15 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 		tc.dStore = s
 		tc.AutoGrant()
 	}
+
+	if ac != nil{
+		rs, err := ac.store.Query()
+		if err == nil{
+			for res := range rs.Next(){
+				fmt.Println(res.Key)
+			}
+		}
+	}
 	return s, nil
 }
 func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (iStore, error){
@@ -50,6 +59,15 @@ func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts
 		ac, err := cv.LoadAccessController(addrs[1])
 		if err != nil{return nil, err}
 		s.(*updatableSignatureStore).ac = ac
+
+		fmt.Println("load: name:", ac.name, ", salt:", ac.salt)
+		rs, err := ac.store.Query()
+		if err == nil{
+			for res := range rs.Next(){
+				fmt.Println(res.Key)
+			}
+		}
+
 		if len(addrs) >= 3 && len(opts) > 0{
 			opts[0].Ac = ac
 			tc, err := cv.LoadTimeController(addrs[2], opts...)
@@ -91,6 +109,8 @@ func (s *updatableSignatureStore) withinTime(key string) error{
 	return nil
 }
 func (s *updatableSignatureStore) Put(key string, val []byte) error{
+	if s.priv == nil{return errors.New("no valid privKey")}
+
 	sign, err := s.priv.Sign(val)
 	if err != nil{return err}
 	sd := &pb.SignatureData{
@@ -138,6 +158,7 @@ func (s *updatableSignatureStore) baseQuery(q query.Query) (query.Results, error
 
 	rs, err := s.updatableStore.Query(q)
 	if err != nil{return nil, err}
+	if q.KeysOnly{return rs, nil}
 
 	ch := make(chan query.Result)
 	go func(){

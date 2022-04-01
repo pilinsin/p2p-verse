@@ -77,7 +77,6 @@ type iValidator interface{
 	Validate(string, []byte) bool
 	Select(string, [][]byte) bool
 }
-
 type logValidator struct{}
 func (v *logValidator) Validate(key string, val []byte) bool{
 	return true
@@ -157,6 +156,8 @@ func (s *logStore) Repair() error{
 	return s.dt.Repair()
 }
 func (s *logStore) Put(key string, val []byte) error{
+	exist, err := s.Has(key)
+	if exist && err == nil{return nil}
 	return s.dt.Put(s.ctx, ds.NewKey(key), val)
 }
 func (s *logStore) Get(key string) ([]byte, error){

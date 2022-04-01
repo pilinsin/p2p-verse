@@ -3,7 +3,6 @@ package crdtverse
 import(
 	"context"
 	"errors"
-	"bytes"
 	"time"
 	"path/filepath"
 
@@ -43,7 +42,7 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 
 	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
 	if err != nil{return nil, err}
-	valid := validatorFunc(v, store, ds.NewKey(name), ipfs)
+	valid := validatorFunc(h.ID(), v, store, ds.NewKey(name), ipfs)
 	if err := gossip.RegisterTopicValidator(name, valid); err != nil{
 		return nil, err
 	}
@@ -63,8 +62,10 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 }
 
 
-func validatorFunc(v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator{
+func validatorFunc(hid peer.ID, v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator{
 	return func(ctx context.Context, pid peer.ID, msg *p2ppubsub.Message) bool{
+		if hid.String() == pid.String(){return true}
+
 		deltas, err := msgToDeltas(ctx, msg, dg)
 		if err != nil{return false}
 
@@ -83,12 +84,9 @@ func validatorFunc(v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.Session
 func validate(key string, val []byte, v iValidator, d ds.Datastore, ns ds.Key) bool{
 	if ok := v.Validate(key, val); !ok{return false}
 	
-	vkey := ns.ChildString("/k").ChildString(key).ChildString("/v")
-	old, err := d.Get(context.Background(), vkey)
-	if old == nil || err != nil{return true}
-	if old != nil && bytes.Equal(old, val){return false}
-
-	return v.Select(key, [][]byte{val, old})
+	vkey := ns.ChildString("s").ChildString("k").ChildString(key).ChildString("v")
+	exist, err := d.Has(context.Background(), vkey)
+	return !exist || err != nil
 }
 
 func msgToDeltas(ctx context.Context, msg *p2ppubsub.Message, dg crdt.SessionDAGService) ([]*crdtpb.Delta, error){
