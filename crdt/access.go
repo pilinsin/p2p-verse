@@ -2,6 +2,8 @@ package crdtverse
 
 import(
 	"fmt"
+	"context"
+	"errors"
 	"strings"
 	"encoding/base64"
 	"crypto/rand"
@@ -50,7 +52,6 @@ func (cv *crdtVerse) NewAccessController(name string, accesses <-chan string, op
 		ac.Close()
 		return nil, err
 	}
-	fmt.Println("ac pid:", PubKeyToStr(ac.store.pub))
 	return ac, nil
 }
 func (s *accessController) init(accesses <-chan string) error{
@@ -66,7 +67,7 @@ func (s *accessController) init(accesses <-chan string) error{
 	}
 	
 	fmt.Println("wait for accessController broadcasting (30s)")
-	<-time.Tick(time.Second*30)
+	time.Sleep(time.Second*30)
 
 	s.store.priv = nil
 	return nil
@@ -81,7 +82,6 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	if err != nil{return nil, err}
 	ap := &pb.AccessParams{}
 	if err := proto.Unmarshal(m, ap); err != nil{return nil, err}
-	fmt.Println("load pid:", ap.GetPid())
 	pub, err := StrToPubKey(ap.GetPid())
 	if err != nil{
 		pub = nil
@@ -92,15 +92,22 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	acst := &accessController{sgst, ap.GetName(), ap.GetSalt(), ap.GetExample()}
 	
 	if acst.exmpl != ""{
-		ticker := time.NewTicker(time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
+		defer cancel()
+		ticker := time.NewTicker(time.Second*4)
 		for{
-			<-ticker.C
-			if err := acst.Sync(); err != nil{
+			select{
+			case <-ctx.Done():
 				acst.Close()
-				return nil, err
+				return nil, errors.New("load error: sync timeout")
+			case <-ticker.C:
+				if err := acst.Sync(); err != nil{
+					acst.Close()
+					return nil, err
+				}
+				ok, err := acst.Has(acst.exmpl)
+				if ok && err == nil{return acst, nil}
 			}
-			ok, err := acst.Has(acst.exmpl)
-			if ok && err == nil{return acst, nil}
 		}
 	}else{
 		return acst, nil

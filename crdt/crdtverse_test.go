@@ -30,9 +30,17 @@ func newStore(t *testing.T, baseDir, name, mode, bAddrInfo string, opts ...*Stor
 func loadStore(t *testing.T, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts)iStore{
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
-	db, err := v.LoadStore(addr, mode, opts...)
-	checkError(t, err)
-	return db
+
+	for{
+		db, err := v.LoadStore(addr, mode, opts...)
+		if err == nil{return db}
+		if err.Error() == "load error: sync timeout"{
+			t.Log(err, ", now reloading...")
+			time.Sleep(time.Second*5)
+			continue
+		}
+		checkError(t, err)
+	}
 }
 
 func TestLogStore(t *testing.T){
@@ -43,21 +51,19 @@ func TestLogStore(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	<-time.Tick(time.Second*10)
+	//time.Sleep(time.Second*10)
 
 	db0 := newStore(t, "ls/la", "lg", "log", pv.AddrInfoToString(bAddrInfo))
 	defer db0.Close()
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
 
-	<-time.Tick(time.Second*30)
+	//time.Sleep(time.Second*30)
 
 	db1 := loadStore(t, "ls/lb", db0.Address(), "log", pv.AddrInfoToString(bAddrInfo))
 	defer db1.Close()
 	t.Log("db1 generated")
 	
-	<-time.Tick(time.Second*30)
-
 	checkError(t, db1.Sync())
 	v10, err := db1.Get("aaa")
 	checkError(t, err)
@@ -74,9 +80,10 @@ func TestLogStore(t *testing.T){
 		t.Log(string(res.Value))
 	}
 
+
 	checkError(t, db0.Sync())
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
-	<-time.Tick(time.Second*5)
+	time.Sleep(time.Second*5)
 
 
 	checkError(t, db1.Sync())
@@ -105,18 +112,21 @@ func TestSignatureStore(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
+	//time.Sleep(time.Second*10)
+
 	opts0 := &StoreOpts{}
 	db0 := newStore(t, "ss/sa", "sg", "signature", pv.AddrInfoToString(bAddrInfo), opts0)
 	defer db0.Close()
+	t.Log("db0 generated")
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
+	t.Log("put done")
 
-	<-time.Tick(time.Second*30)
+	//time.Sleep(time.Second*30)
 
 	db1 := loadStore(t, "ss/sb", db0.Address(), "signature", pv.AddrInfoToString(bAddrInfo))
 	defer db1.Close()
+	t.Log("db1 generated")
 	
-	<-time.Tick(time.Second*30)
-
 	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
 	checkError(t, err)
@@ -135,7 +145,7 @@ func TestSignatureStore(t *testing.T){
 
 
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
-	<-time.Tick(time.Second*10)
+	time.Sleep(time.Second*10)
 
 
 	checkError(t, db1.Sync())
@@ -180,38 +190,26 @@ func TestAccessController(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	<-time.Tick(time.Second*5)
+	//time.Sleep(time.Second*5)
 
 	priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
 	pid := PubKeyToStr(pub)
-	t.Log("pid:", pid)
 	ac := newAccessController(t, "ac/c", "ac", pv.AddrInfoToString(bAddrInfo), pid)
-	t.Log("new : name:", ac.name, ", salt:", ac.salt)
-
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac}
 	db0 := newStore(t, "ac/aa", "us", "updatableSignature", pv.AddrInfoToString(bAddrInfo), opts0)
 	defer db0.Close()
 	t.Log("db0 generated")
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
-	v00, err := db0.Get(PubKeyToStr(opts0.Pub)+"/aaa")
-	checkError(t, err)
-	t.Log("db0.Get:", string(v00))
-	<-time.Tick(time.Second*30)
+
+	//time.Sleep(time.Second*30)
 
 	db1 := loadStore(t, "ac/ab", db0.Address(), "updatableSignature", pv.AddrInfoToString(bAddrInfo))
 	defer db1.Close()
 	t.Log("db1 generated")
-	<-time.Tick(time.Minute)
+	//time.Sleep(time.Second)
 
 	checkError(t, db1.Sync())
-	t.Log("aaaaaa")
-	rs1, err := db1.Query()
-	t.Log("bbbbbbb")
-	checkError(t, err)
-	for res := range rs1.Next(){
-		t.Log(res.Key, string(res.Value))
-	}
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
 	checkError(t, err)
 	t.Log("db1.Get:", string(v10))

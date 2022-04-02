@@ -1,7 +1,6 @@
 package crdtverse
 
 import(
-	"fmt"
 	"errors"
 	"strings"
 
@@ -40,15 +39,6 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 		tc.dStore = s
 		tc.AutoGrant()
 	}
-
-	if ac != nil{
-		rs, err := ac.store.Query()
-		if err == nil{
-			for res := range rs.Next(){
-				fmt.Println(res.Key)
-			}
-		}
-	}
 	return s, nil
 }
 func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (iStore, error){
@@ -59,14 +49,6 @@ func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts
 		ac, err := cv.LoadAccessController(addrs[1])
 		if err != nil{return nil, err}
 		s.(*updatableSignatureStore).ac = ac
-
-		fmt.Println("load: name:", ac.name, ", salt:", ac.salt)
-		rs, err := ac.store.Query()
-		if err == nil{
-			for res := range rs.Next(){
-				fmt.Println(res.Key)
-			}
-		}
 
 		if len(addrs) >= 3 && len(opts) > 0{
 			opts[0].Ac = ac

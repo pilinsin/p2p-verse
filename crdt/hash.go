@@ -27,9 +27,6 @@ func (v *hashValidator) Validate(key string, val []byte) bool{
 	hKey := MakeHashKey(data.GetBaseHash(), data.GetSalt())
 	return key[1:] == hKey
 }
-func (v *hashValidator) Select(key string, vals [][]byte) bool{
-	return len(vals) == 1
-}
 
 
 func getHashOpts(opts ...*StoreOpts) ([]byte, *accessController){

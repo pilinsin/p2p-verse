@@ -60,10 +60,6 @@ func (v *updatableValidator) Validate(key string, val []byte) bool{
 	isBefore := t.Before(time.Now().UTC())
 	return isUTC && isBefore
 }
-func (v *updatableValidator) Select(key string, vals [][]byte) bool{
-	return len(vals) == 1
-}
-
 
 type updatableStore struct{
 	*logStore

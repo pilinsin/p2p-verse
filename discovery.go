@@ -19,7 +19,7 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 
 	connectBootstraps(ctx, h, bootstraps)
 
-	<-time.Tick(5*time.Second)
+	time.Sleep(5*time.Second)
 	
 	if err := d.Bootstrap(ctx); err != nil{
 		return err
@@ -41,7 +41,7 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error{
 		}
 	}
 
-	<-time.Tick(5*time.Second)
+	time.Sleep(5*time.Second)
 	return nil
 }
 func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrInfo){
@@ -78,7 +78,7 @@ func (d *DiscoveryDHT) DHT() *kad.IpfsDHT{
 func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) error{
 	connectBootstraps(d.ctx, d.h, bootstraps)
 
-	<-time.Tick(5*time.Second)
+	time.Sleep(5*time.Second)
 	
 	if err := d.d.Bootstrap(d.ctx); err != nil{return err}
 
@@ -98,6 +98,6 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 		}
 	}
 
-	<-time.Tick(5*time.Second)
+	time.Sleep(5*time.Second)
 	return nil
 }

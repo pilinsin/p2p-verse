@@ -1,11 +1,17 @@
 package crdtverse
 
 import(
+	//"fmt"
 	"context"
+	"errors"
 	"strings"
 	"path/filepath"
+	"time"
 	"os"
 	"io"
+	"encoding/base64"
+
+	"golang.org/x/crypto/argon2"
 
 	pv "github.com/pilinsin/p2p-verse"
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -43,7 +49,26 @@ func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error){
 	st := &logStore{ctx, cancel, dsCancel, name, sp.dht, sp.dStore, sp.dt}
 	return st, nil
 }
+
+
 func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (iStore, error){
+	exmpl := pv.RandString(32)
+	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 32)
+	name = base64.URLEncoding.EncodeToString(hash)
+
+	s, err := cv.selectNewStore(name, mode, opts...)
+	if err != nil{return nil, err}
+
+	if err := s.Put(exmpl, pv.RandBytes(8)); err != nil{
+		s.Close()
+		return nil, err
+	}
+
+	//fmt.Println("wait for initial broadcasting (30s)")
+	//time.Sleep(time.Second*30)
+	return s, nil
+}
+func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (iStore, error){
 	switch mode {
 	case "updatable":
 		return cv.NewUpdatableStore(name, opts...)
@@ -57,7 +82,37 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (iStore, er
 		return cv.NewLogStore(name, opts...)
 	}
 }
+
 func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (iStore, error){
+	s, err := cv.selectLoadStore(addr, mode, opts...)
+	if err != nil{return nil, err}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	ticker := time.NewTicker(time.Second*3)
+	for{
+		select{
+		case <-ctx.Done():
+			s.Close()
+			return nil, errors.New("load error: sync timeout")
+		case <-ticker.C:
+			if err := s.Sync(); err != nil{
+				s.Close()
+				return nil, err
+			}
+
+			rs, err := s.Query(query.Query{
+				KeysOnly: true,
+				Limit: 1,
+			})
+			if err == nil{
+				resList, err := rs.Rest()
+				if len(resList) > 0 && err == nil{return s, nil}
+			}
+		}
+	}
+}
+func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (iStore, error){
 	switch mode {
 	case "updatable":
 		return cv.LoadUpdatableStore(addr, opts...)
@@ -75,33 +130,12 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (iStore, e
 
 type iValidator interface{
 	Validate(string, []byte) bool
-	Select(string, [][]byte) bool
 }
 type logValidator struct{}
 func (v *logValidator) Validate(key string, val []byte) bool{
 	return true
 }
-func (v *logValidator) Select(key string, vals [][]byte) bool{
-	return len(vals) == 1
-}
 
-
-//data key: <pid>/<category>/<tKey>
-type KeyMatchFilter struct{
-	key string
-}
-func (f KeyMatchFilter) Filter(e query.Entry) bool{
-	keys := strings.Split(strings.TrimPrefix(e.Key, "/"), "/")
-	fKeys := strings.Split(strings.TrimPrefix(f.key, "/"), "/")
-	if len(keys) < len(fKeys){return false}
-	
-	for idx := range fKeys{
-		if fKeys[idx] != "*" && fKeys[idx] != keys[idx]{
-			return false
-		}
-	}
-	return true
-}
 
 type iStore interface{
 	Close()
