@@ -8,8 +8,7 @@ import(
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-
-func TestLogStore(t *testing.T){
+func TestSignatureStore(t *testing.T){
 	b, err := pv.SampleHost()
 	checkError(t, err)
 	bstrp, err := pv.NewBootstrap(b)
@@ -19,25 +18,27 @@ func TestLogStore(t *testing.T){
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
 
-	db0 := newStore(t, "ls/la", "lg", "log", baiStr)
+	opts0 := &StoreOpts{}
+	db0 := newStore(t, "ss/sa", "sg", "signature", baiStr, opts0)
 	defer db0.Close()
-	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
+	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
+	t.Log("put done")
 
 
-	db1 := loadStore(t, "ls/lb", db0.Address(), "log", baiStr)
+	db1 := loadStore(t, "ss/sb", db0.Address(), "signature", baiStr)
 	defer db1.Close()
 	t.Log("db1 generated")
 	
 	checkError(t, db1.Sync())
-	v10, err := db1.Get("aaa")
+	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
 	checkError(t, err)
 	t.Log(string(v10))
-	ok, err := db1.Has("aaa")
+	ok, err := db1.Has(PubKeyToStr(opts0.Pub)+"/aaa")
 	t.Log(ok, err)
 	
 	rs1, err := db1.Query(query.Query{
-		Filters: []query.Filter{KeyMatchFilter{"aaa"}},
+		Filters: []query.Filter{KeyExistFilter{"aaa"}},
 		Limit:1,
 	})
 	checkError(t, err)
@@ -46,18 +47,17 @@ func TestLogStore(t *testing.T){
 	}
 
 
-	checkError(t, db0.Sync())
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
-	time.Sleep(time.Second*5)
+	time.Sleep(time.Second*10)
 
 
 	checkError(t, db1.Sync())
-	v12, err := db1.Get("aaa")
+	v12, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
 	checkError(t, err)
 	t.Log(string(v12))
 
 	rs12, err := db1.Query(query.Query{
-		Filters: []query.Filter{KeyMatchFilter{"aaa"}},
+		Filters: []query.Filter{KeyExistFilter{"aaa"}},
 	})
 	checkError(t, err)
 	for res := range rs12.Next(){

@@ -38,9 +38,9 @@ func (o updatableOrder) Compare(a, b query.Entry) int{
 	if err != nil{return -1}
 
 	ta := time.Time{}
-	if err := ta.UnmarshalJSON(ma); err != nil{return 1}
+	if err := ta.UnmarshalBinary(ma); err != nil{return 1}
 	tb := time.Time{}
-	if err := tb.UnmarshalJSON(mb); err != nil{return -1}
+	if err := tb.UnmarshalBinary(mb); err != nil{return -1}
 
 	if ok := ta.UTC().Equal(tb.UTC()); ok{return 0}
 	if ok := ta.UTC().After(tb.UTC()); ok{return -1}
@@ -56,7 +56,7 @@ func (v *updatableValidator) Validate(key string, val []byte) bool{
 	if err != nil{return false}
 
 	t := time.Time{}
-	if err := t.UnmarshalJSON(tb); err != nil{return false}
+	if err := t.UnmarshalBinary(tb); err != nil{return false}
 	isUTC := t.Location().String() == time.UTC.String()
 	isBefore := t.Before(time.Now().UTC())
 	return isUTC && isBefore
@@ -75,7 +75,7 @@ func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (iStore, e
 	return cv.NewUpdatableStore(addr)
 }
 func (s *updatableStore) Put(key string, val []byte) error{
-	tb, err := time.Now().UTC().MarshalJSON()
+	tb, err := time.Now().UTC().MarshalBinary()
 	if err != nil{return err}
 	tKey := base64.URLEncoding.EncodeToString(tb)
 

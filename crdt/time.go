@@ -47,13 +47,6 @@ func (f flagFilter) Filter(e query.Entry) bool{
 
 
 
-func getTimeOpts(opts ...*StoreOpts) *accessController{
-	if len(opts) == 0{
-		return nil
-	}
-	return opts[0].Ac
-}
-
 type timeController struct{
 	ctx context.Context
 	cancel func()
@@ -66,15 +59,12 @@ type timeController struct{
 	cooldown time.Duration
 	n int
 }
-func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, cooldown time.Duration, n int, opts ...*StoreOpts) (*timeController, error){
-	ac := getTimeOpts(opts...)
-	if ac == nil{return nil, errors.New("accessController must not be nil")}
-
+func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, cooldown time.Duration, n int) (*timeController, error){
 	exmpl := pv.RandString(32)
 	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 32)
 	name = base64.URLEncoding.EncodeToString(hash)
 
-	st, err := cv.NewUpdatableSignatureStore(name, opts...)
+	st, err := cv.NewUpdatableSignatureStore(name)
 	if err != nil{return nil, err}
 	usst := st.(*updatableSignatureStore)
 
@@ -86,16 +76,13 @@ func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, c
 	}
 	return tc, nil
 }
-func (cv *crdtVerse) LoadTimeController(tAddr string, opts ...*StoreOpts)(*timeController, error){
-	ac := getTimeOpts(opts...)
-	if ac == nil{return nil, errors.New("accessController must not be nil")}
-
+func (cv *crdtVerse) LoadTimeController(tAddr string)(*timeController, error){
 	m, err := base64.URLEncoding.DecodeString(tAddr)
 	if err != nil{return nil, err}
 	tp := &pb.TimeParams{}
 	if err := tp.Unmarshal(m); err != nil{return nil, err}
 
-	s, err := cv.NewUpdatableSignatureStore(tp.Name, opts...)
+	s, err := cv.NewUpdatableSignatureStore(tp.Name)
 	if err != nil{return nil, err}
 	usst := s.(*updatableSignatureStore)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -157,7 +144,7 @@ func (tc *timeController) extractTime(key string) (time.Time, error){
 	if err != nil{return time.Time{}, err}
 
 	t := time.Time{}
-	if err := t.UnmarshalJSON(tb); err != nil{return time.Time{}, err}
+	if err := t.UnmarshalBinary(tb); err != nil{return time.Time{}, err}
 	return t, nil
 }
 func (tc *timeController) makedataKeyHash(key string) string{
@@ -243,7 +230,7 @@ func (tc *timeController) AutoGrant(){
 		}
 	}()
 }
-
+//key: <pid>/<category>/<tKey>
 func (tc *timeController) Has(key string) (bool, error){
 	t, err := tc.extractTime(key)
 	if err != nil{return false, err}

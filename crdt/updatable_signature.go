@@ -51,9 +51,8 @@ func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts
 		if err != nil{return nil, err}
 		s.(*updatableSignatureStore).ac = ac
 
-		if len(addrs) >= 3 && len(opts) > 0{
-			opts[0].Ac = ac
-			tc, err := cv.LoadTimeController(addrs[2], opts...)
+		if len(addrs) >= 3{
+			tc, err := cv.LoadTimeController(addrs[2])
 			if err != nil{return nil, err}
 			s.(*updatableSignatureStore).tc = tc
 			tc.dStore = s.(*updatableSignatureStore)
@@ -84,7 +83,14 @@ func (s *updatableSignatureStore) verify(key string) error{
 }
 func (s *updatableSignatureStore) withinTime(key string) error{
 	if s.tc != nil{
-		ok, err := s.tc.Has(key)
+		//key: <pid>/<category>
+		rs, err := s.baseQuery(query.Query{KeysOnly: true, Limit:1})
+		if err != nil{return errors.New("invalid key")}
+		r := <-rs.Next()
+		rs.Close()
+		
+		//r.Key: <pid>/<category>/<tKey>
+		ok, err := s.tc.Has(r.Key)
 		if !ok || err != nil{
 			return errors.New("time limit error")
 		}
