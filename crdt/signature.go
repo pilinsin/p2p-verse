@@ -3,7 +3,8 @@ package crdtverse
 import(
 	"errors"
 	"strings"
-
+	
+	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
 	query "github.com/ipfs/go-datastore/query"
@@ -161,3 +162,32 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error){
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
+
+
+func (s *signatureStore) InitPut(key string) error{
+	if s.priv == nil{return errors.New("no valid privKey")}
+
+	val := pv.RandBytes(8)
+	sign, err := s.priv.Sign(val)
+	if err != nil{return err}
+	sd := &pb.SignatureData{
+		Value: val,
+		Sign: sign,
+	}
+	msd, err := proto.Marshal(sd)
+	if err != nil{return err}
+
+	sKey := PubKeyToStr(s.pub)
+	if sKey == ""{return errors.New("invalid pubKey")}
+	key = sKey + "/" + key
+	return s.logStore.Put(key, msd)
+}
+func (s *signatureStore) LoadCheck() bool{
+	rs, err := s.logStore.Query(query.Query{
+		KeysOnly: true,
+		Limit: 1,
+	})
+	if err != nil{return false}
+	resList, err := rs.Rest()
+	return len(resList) > 0 && err == nil
+}

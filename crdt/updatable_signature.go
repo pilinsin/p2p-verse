@@ -4,6 +4,7 @@ import(
 	"errors"
 	"strings"
 
+	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
@@ -167,4 +168,32 @@ func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error
 	}
 
 	return s.baseQuery(q)
+}
+
+func (s *updatableSignatureStore) InitPut(key string) error{
+	if s.priv == nil{return errors.New("no valid privKey")}
+
+	val := pv.RandBytes(8)
+	sign, err := s.priv.Sign(val)
+	if err != nil{return err}
+	sd := &pb.SignatureData{
+		Value: val,
+		Sign: sign,
+	}
+	msd, err := proto.Marshal(sd)
+	if err != nil{return err}
+
+	sKey := PubKeyToStr(s.pub)
+	if sKey == ""{return errors.New("invalid pubKey")}
+	key = sKey + "/" + key
+	return s.updatableStore.Put(key, msd)
+}
+func (s *updatableSignatureStore) LoadCheck() bool{
+	rs, err := s.updatableStore.Query(query.Query{
+		KeysOnly: true,
+		Limit: 1,
+	})
+	if err != nil{return false}
+	resList, err := rs.Rest()
+	return len(resList) > 0 && err == nil
 }

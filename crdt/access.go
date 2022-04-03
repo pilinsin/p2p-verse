@@ -1,7 +1,6 @@
 package crdtverse
 
 import(
-	"fmt"
 	"context"
 	"errors"
 	"strings"
@@ -65,9 +64,6 @@ func (s *accessController) init(accesses <-chan string) error{
 		if err := s.put(access, b); err != nil{return err}
 		s.exmpl = access
 	}
-	
-	fmt.Println("wait for accessController broadcasting (30s)")
-	time.Sleep(time.Second*30)
 
 	s.store.priv = nil
 	return nil
@@ -92,7 +88,7 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	acst := &accessController{sgst, ap.GetName(), ap.GetSalt(), ap.GetExample()}
 	
 	if acst.exmpl != ""{
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 		defer cancel()
 		ticker := time.NewTicker(time.Second*4)
 		for{

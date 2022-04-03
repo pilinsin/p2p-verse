@@ -5,6 +5,7 @@ import(
 	"strings"
 	"encoding/base64"
 
+	pv "github.com/pilinsin/p2p-verse"
 	query "github.com/ipfs/go-datastore/query"
 )
 
@@ -142,4 +143,18 @@ func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
 		}
 	}()
 	return query.ResultsWithChan(query.Query{}, ch), nil
+}
+
+
+func (s *updatableStore) InitPut(key string) error{
+	return s.Put(key, pv.RandBytes(8))
+}
+func (s *updatableStore) LoadCheck() bool{
+	rs, err := s.Query(query.Query{
+		KeysOnly: true,
+		Limit: 1,
+	})
+	if err != nil{return false}
+	resList, err := rs.Rest()
+	return len(resList) > 0 && err == nil
 }

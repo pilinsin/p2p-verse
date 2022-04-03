@@ -59,13 +59,11 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (iStore, er
 	s, err := cv.selectNewStore(name, mode, opts...)
 	if err != nil{return nil, err}
 
-	if err := s.Put(exmpl, pv.RandBytes(8)); err != nil{
+	if err := s.InitPut(exmpl); err != nil{
 		s.Close()
 		return nil, err
 	}
 
-	//fmt.Println("wait for initial broadcasting (30s)")
-	//time.Sleep(time.Second*30)
 	return s, nil
 }
 func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (iStore, error){
@@ -101,14 +99,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (iStore, e
 				return nil, err
 			}
 
-			rs, err := s.Query(query.Query{
-				KeysOnly: true,
-				Limit: 1,
-			})
-			if err == nil{
-				resList, err := rs.Rest()
-				if len(resList) > 0 && err == nil{return s, nil}
-			}
+			if ok := s.LoadCheck(); ok{return s, nil}
 		}
 	}
 }
@@ -147,6 +138,8 @@ type iStore interface{
 	GetSize(string) (int, error)
 	Has(string) (bool, error)
 	Query(...query.Query) (query.Results, error)
+	InitPut(string) error
+	LoadCheck() bool
 }
 
 type StoreOpts struct{
@@ -213,5 +206,18 @@ func (s *logStore) Query(qs ...query.Query) (query.Results, error){
 	return s.dt.Query(s.ctx, q)
 }
 
+
+func (s *logStore) InitPut(key string) error{
+	return s.Put(key, pv.RandBytes(8))
+}
+func (s *logStore) LoadCheck() bool{
+	rs, err := s.Query(query.Query{
+		KeysOnly: true,
+		Limit: 1,
+	})
+	if err != nil{return false}
+	resList, err := rs.Rest()
+	return len(resList) > 0 && err == nil
+}
 
 

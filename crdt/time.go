@@ -12,6 +12,7 @@ import(
 
 	query "github.com/ipfs/go-datastore/query"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 type tcFilter struct{
@@ -68,12 +69,22 @@ type timeController struct{
 func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, cooldown time.Duration, n int, opts ...*StoreOpts) (*timeController, error){
 	ac := getTimeOpts(opts...)
 	if ac == nil{return nil, errors.New("accessController must not be nil")}
+
+	exmpl := pv.RandString(32)
+	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 32)
+	name = base64.URLEncoding.EncodeToString(hash)
+
 	st, err := cv.NewUpdatableSignatureStore(name, opts...)
 	if err != nil{return nil, err}
 	usst := st.(*updatableSignatureStore)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	return &timeController{ctx, cancel, nil, usst, name, begin, end, eps, cooldown, n}, nil
+	tc := &timeController{ctx, cancel, nil, usst, name, begin, end, eps, cooldown, n}
+	if err := tc.pStore.InitPut(exmpl); err != nil{
+		tc.Close()
+		return nil, err
+	}
+	return tc, nil
 }
 func (cv *crdtVerse) LoadTimeController(tAddr string, opts ...*StoreOpts)(*timeController, error){
 	ac := getTimeOpts(opts...)
@@ -88,7 +99,28 @@ func (cv *crdtVerse) LoadTimeController(tAddr string, opts ...*StoreOpts)(*timeC
 	if err != nil{return nil, err}
 	usst := s.(*updatableSignatureStore)
 	ctx, cancel := context.WithCancel(context.Background())
-	return &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}, nil
+	tc := &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}
+	if err := tc.initLoad(); err != nil{return nil, err}
+	return tc, nil
+}
+func (tc *timeController) initLoad() error{
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	ticker := time.NewTicker(time.Second*2)
+	for{
+		select{
+		case <-ctx.Done():
+			tc.Close()
+			return errors.New("load error: sync timeout")
+		case <-ticker.C:
+			if err := tc.pStore.Sync(); err != nil{
+				tc.Close()
+				return err
+			}
+
+			if ok := tc.pStore.LoadCheck(); ok{return nil}
+		}
+	}
 }
 func (tc *timeController) Address() string{
 	tp := &pb.TimeParams{tc.name, tc.begin, tc.end, tc.eps, tc.cooldown, tc.n}

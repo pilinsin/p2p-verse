@@ -51,14 +51,12 @@ func TestLogStore(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	//time.Sleep(time.Second*10)
 
 	db0 := newStore(t, "ls/la", "lg", "log", pv.AddrInfoToString(bAddrInfo))
 	defer db0.Close()
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
 
-	//time.Sleep(time.Second*30)
 
 	db1 := loadStore(t, "ls/lb", db0.Address(), "log", pv.AddrInfoToString(bAddrInfo))
 	defer db1.Close()
@@ -112,7 +110,6 @@ func TestSignatureStore(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	//time.Sleep(time.Second*10)
 
 	opts0 := &StoreOpts{}
 	db0 := newStore(t, "ss/sa", "sg", "signature", pv.AddrInfoToString(bAddrInfo), opts0)
@@ -121,7 +118,6 @@ func TestSignatureStore(t *testing.T){
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
 
-	//time.Sleep(time.Second*30)
 
 	db1 := loadStore(t, "ss/sb", db0.Address(), "signature", pv.AddrInfoToString(bAddrInfo))
 	defer db1.Close()
@@ -190,7 +186,6 @@ func TestAccessController(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	//time.Sleep(time.Second*5)
 
 	priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
 	pid := PubKeyToStr(pub)
@@ -202,12 +197,10 @@ func TestAccessController(t *testing.T){
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
 
-	//time.Sleep(time.Second*30)
 
 	db1 := loadStore(t, "ac/ab", db0.Address(), "updatableSignature", pv.AddrInfoToString(bAddrInfo))
 	defer db1.Close()
 	t.Log("db1 generated")
-	//time.Sleep(time.Second)
 
 	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")

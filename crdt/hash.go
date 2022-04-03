@@ -6,6 +6,7 @@ import(
 	"encoding/base64"
 	"crypto/rand"
 
+	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
 	"golang.org/x/crypto/argon2"
@@ -138,4 +139,28 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error){
 		}
 	}()
 	return query.ResultsWithChan(query.Query{}, ch), nil
+}
+
+
+func (s *hashStore) InitPut(key string) error{
+	key = MakeHashKey(key, s.salt)
+	val := pv.RandBytes(8)
+	
+	hd := &pb.HashData{
+		BaseHash: key,
+		Salt: s.salt,
+		Value: val,
+	}
+	m, err := proto.Marshal(hd)
+	if err != nil{return err}
+	return s.logStore.Put(key, m)
+}
+func (s *hashStore) LoadCheck() bool{
+	rs, err := s.logStore.Query(query.Query{
+		KeysOnly: true,
+		Limit: 1,
+	})
+	if err != nil{return false}
+	resList, err := rs.Rest()
+	return len(resList) > 0 && err == nil
 }
