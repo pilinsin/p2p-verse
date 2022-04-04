@@ -58,7 +58,7 @@ type signatureStore struct{
 	pub p2pcrypto.PubKey
 	ac *accessController
 }
-func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (IStore, error){
 	priv, pub, ac := getSignatureOpts(opts...)
 
 	v := signatureValidator{&logValidator{}}
@@ -66,7 +66,7 @@ func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (iStore,
 	if err != nil{return nil, err}
 	return &signatureStore{st, priv, pub, ac}, nil
 }
-func (cv *crdtVerse) LoadSignatureStore(addr string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) LoadSignatureStore(addr string, opts ...*StoreOpts) (IStore, error){
 	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
 	s, err := cv.NewSignatureStore(addrs[0], opts...)
 	if err != nil{return nil, err}

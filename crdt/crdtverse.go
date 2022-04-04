@@ -51,7 +51,7 @@ func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error){
 }
 
 
-func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, error){
 	exmpl := pv.RandString(32)
 	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 32)
 	name = base64.URLEncoding.EncodeToString(hash)
@@ -66,7 +66,7 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (iStore, er
 
 	return s, nil
 }
-func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (IStore, error){
 	switch mode {
 	case "updatable":
 		return cv.NewUpdatableStore(name, opts...)
@@ -81,7 +81,7 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (iSto
 	}
 }
 
-func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error){
 	s, err := cv.selectLoadStore(addr, mode, opts...)
 	if err != nil{return nil, err}
 
@@ -103,7 +103,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (iStore, e
 		}
 	}
 }
-func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error){
 	switch mode {
 	case "updatable":
 		return cv.LoadUpdatableStore(addr, opts...)
@@ -128,7 +128,7 @@ func (v *logValidator) Validate(key string, val []byte) bool{
 }
 
 
-type iStore interface{
+type IStore interface{
 	Close()
 	Address() string
 	Sync() error
@@ -159,10 +159,10 @@ type logStore struct{
 	dStore ds.Datastore
 	dt *crdt.Datastore
 }
-func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (IStore, error){
 	return cv.newCRDT(name, &logValidator{})
 }
-func (cv *crdtVerse) LoadLogStore(addr string, _ ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) LoadLogStore(addr string, _ ...*StoreOpts) (IStore, error){
 	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
 	return cv.NewLogStore(addr)
 }

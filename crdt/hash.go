@@ -48,13 +48,13 @@ type hashStore struct{
 	salt []byte
 	ac *accessController
 }
-func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, error){
 	salt, ac := getHashOpts(opts...)
 	st, err := cv.newCRDT(name, &hashValidator{})
 	if err != nil{return nil, err}
 	return &hashStore{st, salt, ac}, nil
 }
-func (cv *crdtVerse) LoadHashStore(addr string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) LoadHashStore(addr string, opts ...*StoreOpts) (IStore, error){
 	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
 	s, err := cv.NewHashStore(addrs[0], opts...)
 	if err != nil{return nil, err}

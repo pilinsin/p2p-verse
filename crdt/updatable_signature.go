@@ -29,7 +29,7 @@ type updatableSignatureStore struct{
 	ac *accessController
 	tc *timeController
 }
-func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IStore, error){
 	priv, pub, ac, tc := getUpdatableSignatureOpts(opts...)
 
 	v := signatureValidator{&updatableValidator{}}
@@ -42,7 +42,7 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 	}
 	return s, nil
 }
-func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (IStore, error){
 	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
 	s, err := cv.NewUpdatableSignatureStore(addrs[0], opts...)
 	if err != nil{return nil, err}

@@ -66,30 +66,6 @@ func (r *room) ListPeers() []peer.ID{
 	return r.topic.ListPeers()
 }
 
-type message struct{
-	data []byte
-	t time.Time
-}
-func (m message) Data() []byte{return m.data}
-func (m message) Time() time.Time{return m.t}
-func (m message) marshal() ([]byte, error){
-	mm := struct{
-		D []byte
-		T time.Time
-	}{m.data, m.t}
-	return json.Marshal(mm)
-}
-func (m *message) unmarshal(bs []byte) error{
-	mm := struct{
-		D []byte
-		T time.Time
-	}{}
-	if err := json.Unmarshal(bs, &mm); err != nil{return err}
-
-	m.data = mm.D
-	m.t = mm.T
-	return nil
-}
 func (r *room) Publish(data []byte) error{
 	t, _ := time.Now().UTC().MarshalBinary()
 	mes := &pb.Message{

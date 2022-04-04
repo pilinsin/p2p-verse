@@ -65,12 +65,12 @@ func (v *updatableValidator) Validate(key string, val []byte) bool{
 type updatableStore struct{
 	*logStore
 }
-func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (IStore, error){
 	st, err := cv.newCRDT(name, &updatableValidator{})
 	if err != nil{return nil, err}
 	return &updatableStore{st}, nil
 }
-func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (iStore, error){
+func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (IStore, error){
 	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
 	return cv.NewUpdatableStore(addr)
 }

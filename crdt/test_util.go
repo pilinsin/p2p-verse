@@ -17,14 +17,14 @@ func checkError(t *testing.T, err error, args ...interface{}){
 	}
 }
 
-func newStore(t *testing.T, baseDir, name, mode, bAddrInfo string, opts ...*StoreOpts)iStore{
+func newStore(t *testing.T, baseDir, name, mode, bAddrInfo string, opts ...*StoreOpts)IStore{
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
 	db, err := v.NewStore(name, mode, opts...)
 	checkError(t, err)
 	return db
 }
-func loadStore(t *testing.T, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts)iStore{
+func loadStore(t *testing.T, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts)IStore{
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
 
