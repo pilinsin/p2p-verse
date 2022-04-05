@@ -141,6 +141,10 @@ type IStore interface{
 	InitPut(string) error
 	LoadCheck() bool
 }
+type IUpdatableStore interface{
+	IStore
+	QueryAll(...query.Query) (query.Results, error)
+}
 
 type StoreOpts struct{
 	Salt []byte

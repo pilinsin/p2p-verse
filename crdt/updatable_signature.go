@@ -29,7 +29,7 @@ type updatableSignatureStore struct{
 	ac *accessController
 	tc *timeController
 }
-func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IUpdatableStore, error){
 	priv, pub, ac, tc := getUpdatableSignatureOpts(opts...)
 
 	v := signatureValidator{&updatableValidator{}}
@@ -42,7 +42,7 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 	}
 	return s, nil
 }
-func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (IUpdatableStore, error){
 	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
 	s, err := cv.NewUpdatableSignatureStore(addrs[0], opts...)
 	if err != nil{return nil, err}
@@ -175,6 +175,43 @@ func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error
 
 	return s.baseQuery(q)
 }
+
+func (s *updatableSignatureStore) baseQueryAll(q query.Query) (query.Results, error){
+	if s.ac != nil{
+		q.Filters = append(q.Filters, acFilter{s.ac})
+	}
+
+	rs, err := s.updatableStore.QueryAll(q)
+	if err != nil{return nil, err}
+	if q.KeysOnly{return rs, nil}
+
+	ch := make(chan query.Result)
+	go func(){
+		defer close(ch)
+		for r := range rs.Next(){
+			sd := &pb.SignatureData{}
+			if err := proto.Unmarshal(r.Value, sd); err != nil{continue}
+			
+			r.Value = sd.GetValue()
+			ch <- r
+		}
+	}()
+	return query.ResultsWithChan(query.Query{}, ch), nil
+}
+func (s *updatableSignatureStore) QueryAll(qs ...query.Query) (query.Results, error){
+	var q query.Query
+	if len(qs) == 0{
+		q = query.Query{}
+	}else{
+		q = qs[0]
+	}
+	if s.tc != nil{
+		q.Filters = append(q.Filters, tcFilter{s.tc})
+	}
+
+	return s.baseQueryAll(q)
+}
+
 
 func (s *updatableSignatureStore) InitPut(key string) error{
 	if s.priv == nil{return errors.New("no valid privKey")}

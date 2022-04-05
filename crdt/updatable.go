@@ -65,12 +65,12 @@ func (v *updatableValidator) Validate(key string, val []byte) bool{
 type updatableStore struct{
 	*logStore
 }
-func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (IUpdatableStore, error){
 	st, err := cv.newCRDT(name, &updatableValidator{})
 	if err != nil{return nil, err}
 	return &updatableStore{st}, nil
 }
-func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (IUpdatableStore, error){
 	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
 	return cv.NewUpdatableStore(addr)
 }
@@ -117,7 +117,7 @@ func (s *updatableStore) Has(key string) (bool, error){
 	rs.Close()
 	return len(resList) > 0, err
 }
-func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
+func (s *updatableStore) baseQuery(qs ...query.Query) (query.Results, error){
 	var q query.Query
 	if len(qs) == 0{
 		q = query.Query{}
@@ -125,7 +125,10 @@ func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
 		q = qs[0]
 	}
 	q.Orders = append(q.Orders, categoryOrder{}, updatableOrder{})
-	rs, err := s.logStore.Query(q)
+	return s.logStore.Query(q)
+}
+func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
+	rs, err := s.baseQuery(qs...)
 	if err != nil{return nil, err}
 
 	cKey := ""
@@ -140,6 +143,21 @@ func (s *updatableStore) Query(qs ...query.Query) (query.Results, error){
 				ch <- r
 				cKey = cKey2
 			}
+		}
+	}()
+	return query.ResultsWithChan(query.Query{}, ch), nil
+}
+func (s *updatableStore) QueryAll(qs ...query.Query) (query.Results, error){
+	rs, err := s.baseQuery(qs...)
+	if err != nil{return nil, err}
+
+	ch := make(chan query.Result)
+	go func(){
+		defer close(ch)
+		for r := range rs.Next(){
+			keys := strings.Split(strings.TrimPrefix(r.Key, "/"), "/")
+			if len(keys) < 2{continue}
+			ch <- r
 		}
 	}()
 	return query.ResultsWithChan(query.Query{}, ch), nil
