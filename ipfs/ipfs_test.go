@@ -1,12 +1,12 @@
 package ipfsverse
 
-import(
-	"testing"
+import (
 	pv "github.com/pilinsin/p2p-verse"
+	"testing"
 )
 
-func checkError(t *testing.T, err error, args ...interface{}){
-	if err != nil{
+func checkError(t *testing.T, err error, args ...interface{}) {
+	if err != nil {
 		args0 := make([]interface{}, len(args)+1)
 		args0[0] = err
 		copy(args0[1:], args)
@@ -14,8 +14,9 @@ func checkError(t *testing.T, err error, args ...interface{}){
 		t.Fatal(args0...)
 	}
 }
+
 //go test -test.v=true .
-func TestIpfs(t *testing.T){
+func TestIpfs(t *testing.T) {
 	b, err := pv.SampleHost()
 	checkError(t, err)
 	bstrp, err := pv.NewBootstrap(b)
@@ -30,7 +31,6 @@ func TestIpfs(t *testing.T){
 	c, err := ipfs.Add([]byte("meow meow ^.^"))
 	checkError(t, err)
 	t.Log("add,", c)
-
 
 	ipfs2, err := NewIpfsStore(pv.SampleHost, "ipfs2", "dht-kw", false, false, bAddrInfo)
 	checkError(t, err)

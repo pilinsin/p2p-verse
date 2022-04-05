@@ -1,41 +1,48 @@
 package __
 
-import(
-	"time"
+import (
 	proto "google.golang.org/protobuf/proto"
+	"time"
 )
 
-type TimeParams struct{
-	Name string
+type TimeParams struct {
+	Name  string
 	Begin time.Time
-	End time.Time
-	Eps time.Duration
-	Cool time.Duration
-	N int
+	End   time.Time
+	Eps   time.Duration
+	Cool  time.Duration
+	N     int
 }
-func (tp *TimeParams) Marshal() ([]byte, error){
+
+func (tp *TimeParams) Marshal() ([]byte, error) {
 	bg, _ := tp.Begin.MarshalBinary()
 	ed, _ := tp.End.MarshalBinary()
 	ep := int64(tp.Eps)
 	cl := int64(tp.Cool)
 	tm := &TimeMessage{
-		Name: tp.Name,
+		Name:  tp.Name,
 		Begin: bg,
-		End: ed,
-		Eps: ep,
-		Cool: cl,
-		N: int32(tp.N),
+		End:   ed,
+		Eps:   ep,
+		Cool:  cl,
+		N:     int32(tp.N),
 	}
 	return proto.Marshal(tm)
 }
-func (tp *TimeParams) Unmarshal(m []byte) error{
+func (tp *TimeParams) Unmarshal(m []byte) error {
 	tm := &TimeMessage{}
-	if err := proto.Unmarshal(m, tm); err != nil{return err}
+	if err := proto.Unmarshal(m, tm); err != nil {
+		return err
+	}
 
 	bg := time.Time{}
-	if err := bg.UnmarshalBinary(tm.GetBegin()); err != nil{return err}
+	if err := bg.UnmarshalBinary(tm.GetBegin()); err != nil {
+		return err
+	}
 	ed := time.Time{}
-	if err := ed.UnmarshalBinary(tm.GetEnd()); err != nil{return err}
+	if err := ed.UnmarshalBinary(tm.GetEnd()); err != nil {
+		return err
+	}
 	ep := time.Duration(tm.GetEps())
 	cl := time.Duration(tm.GetCool())
 

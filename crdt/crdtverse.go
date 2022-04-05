@@ -1,72 +1,82 @@
 package crdtverse
 
-import(
+import (
 	//"fmt"
 	"context"
-	"errors"
-	"strings"
-	"path/filepath"
-	"time"
-	"os"
-	"io"
 	"encoding/base64"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 
-	pv "github.com/pilinsin/p2p-verse"
-	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
+	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 type hostGenerator func(...io.Reader) (host.Host, error)
 
-type crdtVerse struct{
+type crdtVerse struct {
 	hGenerator hostGenerator
-	dirPath string
-	save bool
-	useMemory bool
+	dirPath    string
+	save       bool
+	useMemory  bool
 	bootstraps []peer.AddrInfo
 }
-func NewVerse(hGen hostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse{
+
+func NewVerse(hGen hostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse {
 	return &crdtVerse{hGen, dir, save, useMemory, bootstraps}
 }
-func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error){
+func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
 	h, err := cv.hGenerator()
-	if err != nil{return nil, err}
+	if err != nil {
+		return nil, err
+	}
 
 	dirAddr := filepath.Join(cv.dirPath, name)
-	if err := os.MkdirAll(dirAddr, 0700); err != nil{return nil, err}
-	dsCancel := func(){}
-	if !cv.save{dsCancel = func(){os.RemoveAll(dirAddr)}}
+	if err := os.MkdirAll(dirAddr, 0700); err != nil {
+		return nil, err
+	}
+	dsCancel := func() {}
+	if !cv.save {
+		dsCancel = func() { os.RemoveAll(dirAddr) }
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sp, err := cv.setupStore(ctx, h, name, v)
-	if err != nil{return nil, err}
+	if err != nil {
+		return nil, err
+	}
 	st := &logStore{ctx, cancel, dsCancel, name, sp.dht, sp.dStore, sp.dt}
 	return st, nil
 }
 
-
-func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, error) {
 	exmpl := pv.RandString(32)
 	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 32)
 	name = base64.URLEncoding.EncodeToString(hash)
 
 	s, err := cv.selectNewStore(name, mode, opts...)
-	if err != nil{return nil, err}
+	if err != nil {
+		return nil, err
+	}
 
-	if err := s.InitPut(exmpl); err != nil{
+	if err := s.InitPut(exmpl); err != nil {
 		s.Close()
 		return nil, err
 	}
 
 	return s, nil
 }
-func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (IStore, error) {
 	switch mode {
 	case "updatable":
 		return cv.NewUpdatableStore(name, opts...)
@@ -81,29 +91,33 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 	}
 }
 
-func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	s, err := cv.selectLoadStore(addr, mode, opts...)
-	if err != nil{return nil, err}
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	ticker := time.NewTicker(time.Second*3)
-	for{
-		select{
+	ticker := time.NewTicker(time.Second * 3)
+	for {
+		select {
 		case <-ctx.Done():
 			s.Close()
 			return nil, errors.New("load error: sync timeout")
 		case <-ticker.C:
-			if err := s.Sync(); err != nil{
+			if err := s.Sync(); err != nil {
 				s.Close()
 				return nil, err
 			}
 
-			if ok := s.LoadCheck(); ok{return s, nil}
+			if ok := s.LoadCheck(); ok {
+				return s, nil
+			}
 		}
 	}
 }
-func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	switch mode {
 	case "updatable":
 		return cv.LoadUpdatableStore(addr, opts...)
@@ -118,17 +132,16 @@ func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (ISt
 	}
 }
 
-
-type iValidator interface{
+type iValidator interface {
 	Validate(string, []byte) bool
 }
 type logValidator struct{}
-func (v *logValidator) Validate(key string, val []byte) bool{
+
+func (v *logValidator) Validate(key string, val []byte) bool {
 	return true
 }
 
-
-type IStore interface{
+type IStore interface {
 	Close()
 	Address() string
 	Sync() error
@@ -141,87 +154,89 @@ type IStore interface{
 	InitPut(string) error
 	LoadCheck() bool
 }
-type IUpdatableStore interface{
+type IUpdatableStore interface {
 	IStore
 	QueryAll(...query.Query) (query.Results, error)
 }
 
-type StoreOpts struct{
+type StoreOpts struct {
 	Salt []byte
 	Priv p2pcrypto.PrivKey
-	Pub p2pcrypto.PubKey
-	Ac *accessController
-	Tc *timeController
+	Pub  p2pcrypto.PubKey
+	Ac   *accessController
+	Tc   *timeController
 }
 
-type logStore struct{
-	ctx context.Context
-	cancel func()
+type logStore struct {
+	ctx      context.Context
+	cancel   func()
 	dsCancel func()
-	name string
-	dht *pv.DiscoveryDHT
-	dStore ds.Datastore
-	dt *crdt.Datastore
+	name     string
+	dht      *pv.DiscoveryDHT
+	dStore   ds.Datastore
+	dt       *crdt.Datastore
 }
-func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (IStore, error){
+
+func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (IStore, error) {
 	return cv.newCRDT(name, &logValidator{})
 }
-func (cv *crdtVerse) LoadLogStore(addr string, _ ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) LoadLogStore(addr string, _ ...*StoreOpts) (IStore, error) {
 	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
 	return cv.NewLogStore(addr)
 }
-func (s *logStore) Close(){
+func (s *logStore) Close() {
 	s.cancel()
 	s.dt.Close()
 	s.dStore.Close()
 	s.dht.Close()
 	s.dsCancel()
 }
-func (s *logStore) Address() string{
+func (s *logStore) Address() string {
 	return s.name
 }
-func (s *logStore) Sync() error{
+func (s *logStore) Sync() error {
 	return s.dt.Sync(s.ctx, ds.NewKey("/"))
 }
-func (s *logStore) Repair() error{
+func (s *logStore) Repair() error {
 	return s.dt.Repair()
 }
-func (s *logStore) Put(key string, val []byte) error{
+func (s *logStore) Put(key string, val []byte) error {
 	exist, err := s.Has(key)
-	if exist && err == nil{return nil}
+	if exist && err == nil {
+		return nil
+	}
 	return s.dt.Put(s.ctx, ds.NewKey(key), val)
 }
-func (s *logStore) Get(key string) ([]byte, error){
+func (s *logStore) Get(key string) ([]byte, error) {
 	return s.dt.Get(s.ctx, ds.NewKey(key))
 }
-func (s *logStore) GetSize(key string) (int, error){
+func (s *logStore) GetSize(key string) (int, error) {
 	return s.dt.GetSize(s.ctx, ds.NewKey(key))
 }
-func (s *logStore) Has(key string) (bool, error){
+func (s *logStore) Has(key string) (bool, error) {
 	return s.dt.Has(s.ctx, ds.NewKey(key))
 }
-func (s *logStore) Query(qs ...query.Query) (query.Results, error){
+func (s *logStore) Query(qs ...query.Query) (query.Results, error) {
 	var q query.Query
-	if len(qs) == 0{
+	if len(qs) == 0 {
 		q = query.Query{}
-	}else{
+	} else {
 		q = qs[0]
 	}
 	return s.dt.Query(s.ctx, q)
 }
 
-
-func (s *logStore) InitPut(key string) error{
+func (s *logStore) InitPut(key string) error {
 	return s.Put(key, pv.RandBytes(8))
 }
-func (s *logStore) LoadCheck() bool{
+func (s *logStore) LoadCheck() bool {
 	rs, err := s.Query(query.Query{
 		KeysOnly: true,
-		Limit: 1,
+		Limit:    1,
 	})
-	if err != nil{return false}
+	if err != nil {
+		return false
+	}
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil
 }
-
-

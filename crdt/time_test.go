@@ -1,6 +1,6 @@
 package crdtverse
 
-import(
+import (
 	"testing"
 	"time"
 
@@ -8,8 +8,7 @@ import(
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-
-func TestTimeController(t *testing.T){
+func TestTimeController(t *testing.T) {
 	b, err := pv.SampleHost()
 	checkError(t, err)
 	bstrp, err := pv.NewBootstrap(b)
@@ -17,7 +16,6 @@ func TestTimeController(t *testing.T){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 	baiStr := pv.AddrInfoToString(bAddrInfo)
-
 
 	priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
 	pid := PubKeyToStr(pub)
@@ -38,13 +36,12 @@ func TestTimeController(t *testing.T){
 	t.Log("put done")
 
 	//wait for db1.tc.AutoGrant()
-	time.Sleep(time.Minute*2)
+	time.Sleep(time.Minute * 2)
 
 	checkError(t, db1.Sync())
-	v10, err := db1.Get(PubKeyToStr(opts0.Pub)+"/aaa")
+	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
 	checkError(t, err)
 	t.Log("db1.Get:", string(v10))
-
 
 	t.Log("finished")
 }

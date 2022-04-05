@@ -1,14 +1,14 @@
 package crdtverse
 
-import(
+import (
 	"testing"
 	"time"
 
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-func checkError(t *testing.T, err error, args ...interface{}){
-	if err != nil{
+func checkError(t *testing.T, err error, args ...interface{}) {
+	if err != nil {
 		args0 := make([]interface{}, len(args)+1)
 		args0[0] = err
 		copy(args0[1:], args)
@@ -17,35 +17,36 @@ func checkError(t *testing.T, err error, args ...interface{}){
 	}
 }
 
-func newStore(t *testing.T, baseDir, name, mode, bAddrInfo string, opts ...*StoreOpts)IStore{
+func newStore(t *testing.T, baseDir, name, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
 	db, err := v.NewStore(name, mode, opts...)
 	checkError(t, err)
 	return db
 }
-func loadStore(t *testing.T, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts)IStore{
+func loadStore(t *testing.T, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
 
-	for{
+	for {
 		db, err := v.LoadStore(addr, mode, opts...)
-		if err == nil{return db}
-		if err.Error() == "load error: sync timeout"{
+		if err == nil {
+			return db
+		}
+		if err.Error() == "load error: sync timeout" {
 			t.Log(err, ", now reloading...")
-			time.Sleep(time.Second*10)
+			time.Sleep(time.Second * 10)
 			continue
 		}
 		checkError(t, err)
 	}
 }
 
-
-func newAccessController(t *testing.T, baseDir, name, bAddrInfo string, keys ...string) *accessController{
+func newAccessController(t *testing.T, baseDir, name, bAddrInfo string, keys ...string) *accessController {
 	accesses := make(chan string)
-	go func(){
+	go func() {
 		defer close(accesses)
-		for _, key := range keys{
+		for _, key := range keys {
 			accesses <- key
 		}
 	}()
@@ -57,7 +58,7 @@ func newAccessController(t *testing.T, baseDir, name, bAddrInfo string, keys ...
 	return ac
 }
 
-func newTimeController(t *testing.T, baseDir, name, bAddrInfo string, begin, end time.Time) *timeController{
+func newTimeController(t *testing.T, baseDir, name, bAddrInfo string, begin, end time.Time) *timeController {
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
 	tc, err := v.NewTimeController(name, begin, end, time.Minute*2, time.Second*10, 1)
