@@ -1,0 +1,13 @@
+syntax = "proto3";
+package pb;
+option go_package = "./";
+
+
+message AddrInfo{
+	string	ID				= 1;
+	repeated bytes	Addrs	= 2;
+}
+
+message AddrInfos{
+	repeated AddrInfo addrInfos = 1;
+}

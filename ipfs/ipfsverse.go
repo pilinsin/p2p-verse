@@ -19,6 +19,15 @@ import (
 
 type hostGenerator func(...io.Reader) (host.Host, error)
 
+type Ipfs interface {
+	Close()
+	AddReader(io.Reader) (string, error)
+	Add([]byte) (string, error)
+	GetReader(string) (uio.ReadSeekCloser, error)
+	Get(string) ([]byte, error)
+	Has(string) (bool, error)
+}
+
 type ipfsStore struct {
 	ctx      context.Context
 	cancel   func()
@@ -29,7 +38,7 @@ type ipfsStore struct {
 	ipfs     *ipfslt.Peer
 }
 
-func NewIpfsStore(hGen hostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (*ipfsStore, error) {
+func NewIpfsStore(hGen hostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
 	h, err := hGen()
 	if err != nil {
 		return nil, err

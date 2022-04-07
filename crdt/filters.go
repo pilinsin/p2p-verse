@@ -1,6 +1,7 @@
 package crdtverse
 
 import (
+	"bytes"
 	query "github.com/ipfs/go-datastore/query"
 	"strings"
 )
@@ -37,4 +38,12 @@ func (f KeyExistFilter) Filter(e query.Entry) bool {
 		}
 	}
 	return false
+}
+
+type ValueMatchFilter struct {
+	val []byte
+}
+
+func (f ValueMatchFilter) Filter(e query.Entry) bool {
+	return bytes.Equal(e.Value, f.val)
 }
