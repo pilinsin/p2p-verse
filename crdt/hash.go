@@ -111,7 +111,7 @@ func (s *hashStore) Put(bHashStr string, val []byte) error {
 	}
 	return s.logStore.Put(key, m)
 }
-func (s *hashStore) Get(key string) ([]byte, error) {
+func (s *hashStore) get(key string) ([]byte, error) {
 	if err := s.verify(key); err != nil {
 		return nil, err
 	}
@@ -126,6 +126,15 @@ func (s *hashStore) Get(key string) ([]byte, error) {
 	}
 	return hd.GetValue(), nil
 }
+func (s *hashStore) Get(key string) ([]byte, error) {
+	data, err := s.get(key)
+	if err == nil{
+		return data, nil
+	}
+
+	key = MakeHashKey(key, s.salt)
+	return s.get(key)
+}
 func (s *hashStore) GetSize(key string) (int, error) {
 	val, err := s.Get(key)
 	if err != nil {
@@ -133,11 +142,20 @@ func (s *hashStore) GetSize(key string) (int, error) {
 	}
 	return len(val), nil
 }
-func (s *hashStore) Has(key string) (bool, error) {
+func (s *hashStore) has(key string) (bool, error) {
 	if err := s.verify(key); err != nil {
 		return false, err
 	}
 	return s.logStore.Has(key)
+}
+func (s *hashStore) Has(key string) (bool, error) {
+	ok, err := s.has(key)
+	if ok && err == nil{
+		return true, nil
+	}
+
+	key = MakeHashKey(key, s.salt)
+	return s.has(key)
 }
 func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	var q query.Query
