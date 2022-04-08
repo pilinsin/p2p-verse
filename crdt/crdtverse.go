@@ -1,7 +1,7 @@
 package crdtverse
 
 import (
-	//"fmt"
+	"fmt"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -20,6 +20,11 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	pv "github.com/pilinsin/p2p-verse"
+)
+
+const(
+	timeout string = "load error: sync timeout"
+	dirLock string = "Cannot acquire directory lock on"
 )
 
 type hostGenerator func(...io.Reader) (host.Host, error)
@@ -92,6 +97,21 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 }
 
 func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
+	for {
+		db, err := cv.baseLoadStore(addr, mode, opts...)
+		if err == nil {
+			return db, nil
+		}
+		errS := err.Error()
+		if errS == timeout || strings.HasPrefix(errS, dirLock) {
+			fmt.Println(err, ", now reloading...")
+			time.Sleep(time.Second * 5)
+			continue
+		}
+		if err != nil{return nil, err}
+	}
+}
+func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	s, err := cv.selectLoadStore(addr, mode, opts...)
 	if err != nil {
 		return nil, err

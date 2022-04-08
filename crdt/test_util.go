@@ -27,19 +27,9 @@ func newStore(t *testing.T, baseDir, name, mode, bAddrInfo string, opts ...*Stor
 func loadStore(t *testing.T, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(pv.SampleHost, baseDir, false, false, bai)
-
-	for {
-		db, err := v.LoadStore(addr, mode, opts...)
-		if err == nil {
-			return db
-		}
-		if err.Error() == "load error: sync timeout" {
-			t.Log(err, ", now reloading...")
-			time.Sleep(time.Second * 10)
-			continue
-		}
-		checkError(t, err)
-	}
+	db, err := v.LoadStore(addr, mode, opts...)
+	checkError(t, err)
+	return db
 }
 
 func newAccessController(t *testing.T, baseDir, name, bAddrInfo string, keys ...string) *accessController {
