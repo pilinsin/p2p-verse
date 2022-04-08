@@ -22,7 +22,6 @@ func TestHashStore(t *testing.T) {
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
 
-
 	db1 := loadStore(t, "hs/hb", db0.Address(), "hash", baiStr, opts)
 	defer db1.Close()
 	t.Log("db1 generated")
@@ -34,17 +33,14 @@ func TestHashStore(t *testing.T) {
 	ok, err := db1.Has("aaa")
 	t.Log(ok, err)
 
-
 	checkError(t, db0.Sync())
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 	time.Sleep(time.Second * 5)
-
 
 	checkError(t, db1.Sync())
 	v12, err := db1.Get("aaa")
 	checkError(t, err)
 	t.Log(string(v12))
-
 
 	t.Log("finished")
 }

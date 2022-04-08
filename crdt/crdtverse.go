@@ -1,10 +1,10 @@
 package crdtverse
 
 import (
-	"fmt"
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -22,7 +22,7 @@ import (
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-const(
+const (
 	timeout string = "load error: sync timeout"
 	dirLock string = "Cannot acquire directory lock on"
 )
@@ -108,7 +108,9 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 			time.Sleep(time.Second * 5)
 			continue
 		}
-		if err != nil{return nil, err}
+		if err != nil {
+			return nil, err
+		}
 	}
 }
 func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {

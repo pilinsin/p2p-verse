@@ -128,7 +128,7 @@ func (s *hashStore) get(key string) ([]byte, error) {
 }
 func (s *hashStore) Get(key string) ([]byte, error) {
 	data, err := s.get(key)
-	if err == nil{
+	if err == nil {
 		return data, nil
 	}
 
@@ -150,7 +150,7 @@ func (s *hashStore) has(key string) (bool, error) {
 }
 func (s *hashStore) Has(key string) (bool, error) {
 	ok, err := s.has(key)
-	if ok && err == nil{
+	if ok && err == nil {
 		return true, nil
 	}
 
