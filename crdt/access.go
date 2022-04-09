@@ -9,7 +9,6 @@ import (
 	"time"
 
 	query "github.com/ipfs/go-datastore/query"
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	"golang.org/x/crypto/argon2"
 	proto "google.golang.org/protobuf/proto"
@@ -57,7 +56,7 @@ func (cv *crdtVerse) NewAccessController(name string, accesses <-chan string, op
 }
 func (s *accessController) init(accesses <-chan string) error {
 	if s.store.priv == nil || s.store.pub == nil {
-		s.store.priv, s.store.pub, _ = p2pcrypto.GenerateEd25519Key(nil)
+		s.store.priv, s.store.pub, _ = generateKeyPair()
 	}
 
 	for access := range accesses {
@@ -88,7 +87,7 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	}
 	pub, err := StrToPubKey(ap.GetPid())
 	if err != nil {
-		pub = nil
+		return nil, err
 	}
 	st, err := cv.NewSignatureStore(ap.GetName(), &StoreOpts{Priv: nil, Pub: pub})
 	if err != nil {

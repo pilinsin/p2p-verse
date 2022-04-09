@@ -5,26 +5,25 @@ import (
 	"strings"
 
 	query "github.com/ipfs/go-datastore/query"
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
 )
 
-func PubKeyToStr(vk p2pcrypto.PubKey) string {
-	id, err := peer.IDFromPublicKey(vk)
+func PubKeyToStr(vk IPubKey) string {
+	id, err := idFromPubKey(vk)
 	if err != nil {
 		return ""
 	}
 	return id.Pretty()
 }
-func StrToPubKey(s string) (p2pcrypto.PubKey, error) {
+func StrToPubKey(s string) (IPubKey, error) {
 	id, err := peer.Decode(s)
 	if err != nil {
 		return nil, err
 	}
-	vk, err := id.ExtractPublicKey()
+	vk, err := extractPubKey(id)
 	if err != nil {
 		return nil, err
 	}
@@ -54,21 +53,21 @@ func (v *signatureValidator) Validate(key string, val []byte) bool {
 	return err == nil && ok
 }
 
-func getSignatureOpts(opts ...*StoreOpts) (p2pcrypto.PrivKey, p2pcrypto.PubKey, *accessController) {
+func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController) {
 	if len(opts) == 0 {
-		priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
+		priv, pub, _ := generateKeyPair()
 		return priv, pub, nil
 	}
 	if opts[0].Pub == nil {
-		opts[0].Priv, opts[0].Pub, _ = p2pcrypto.GenerateEd25519Key(nil)
+		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
 	}
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac
 }
 
 type signatureStore struct {
 	*logStore
-	priv p2pcrypto.PrivKey
-	pub  p2pcrypto.PubKey
+	priv IPrivKey
+	pub  IPubKey
 	ac   *accessController
 }
 

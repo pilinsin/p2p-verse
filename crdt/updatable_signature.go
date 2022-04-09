@@ -5,27 +5,26 @@ import (
 	"strings"
 
 	query "github.com/ipfs/go-datastore/query"
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
 )
 
-func getUpdatableSignatureOpts(opts ...*StoreOpts) (p2pcrypto.PrivKey, p2pcrypto.PubKey, *accessController, *timeController) {
+func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, *timeController) {
 	if len(opts) == 0 {
-		priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
+		priv, pub, _ := generateKeyPair()
 		return priv, pub, nil, nil
 	}
 	if opts[0].Pub == nil {
-		opts[0].Priv, opts[0].Pub, _ = p2pcrypto.GenerateEd25519Key(nil)
+		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
 	}
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].Tc
 }
 
 type updatableSignatureStore struct {
 	*updatableStore
-	priv p2pcrypto.PrivKey
-	pub  p2pcrypto.PubKey
+	priv IPrivKey
+	pub  IPubKey
 	ac   *accessController
 	tc   *timeController
 }

@@ -3,7 +3,6 @@ package crdtverse
 import (
 	"testing"
 
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -16,7 +15,7 @@ func TestAccessController(t *testing.T) {
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
-	priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
+	priv, pub, _ := generateKeyPair()
 	pid := PubKeyToStr(pub)
 	ac := newAccessController(t, "ac/c", "ac", baiStr, pid)
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac}

@@ -16,7 +16,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	pv "github.com/pilinsin/p2p-verse"
@@ -52,7 +51,7 @@ func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
 	}
 	dsCancel := func() {}
 	if !cv.save {
-		dsCancel = func() { os.RemoveAll(dirAddr) }
+		dsCancel = func() {os.RemoveAll(dirAddr)}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -183,8 +182,8 @@ type IUpdatableStore interface {
 
 type StoreOpts struct {
 	Salt []byte
-	Priv p2pcrypto.PrivKey
-	Pub  p2pcrypto.PubKey
+	Priv IPrivKey
+	Pub  IPubKey
 	Ac   *accessController
 	Tc   *timeController
 }
