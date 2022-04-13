@@ -227,6 +227,17 @@ func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error
 
 	return s.baseQuery(q)
 }
+func (s *updatableSignatureStore) QueryWithoutTc(qs ...query.Query) (query.Results, error) {
+	var q query.Query
+	if len(qs) == 0 {
+		q = query.Query{}
+	} else {
+		q = qs[0]
+	}
+
+	return s.baseQuery(q)
+}
+
 
 func (s *updatableSignatureStore) baseQueryAll(q query.Query) (query.Results, error) {
 	if s.ac != nil {
