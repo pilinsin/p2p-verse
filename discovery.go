@@ -8,6 +8,7 @@ import (
 
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	network "github.com/libp2p/go-libp2p-core/network"
 	p2pdiscovery "github.com/libp2p/go-libp2p-discovery"
 	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
@@ -40,6 +41,9 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 		if len(peer.Addrs) <= 0 {
 			continue
 		}
+		if h.Network().Connectedness(peer.ID) == network.Connected{
+			continue
+		}
 		if err := h.Connect(ctx, peer); err != nil {
 			fmt.Println("connection err:", err)
 		}
@@ -54,6 +58,9 @@ func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrIn
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if self.Network().Connectedness(other.ID) == network.Connected{
+				return
+			}
 			if err := self.Connect(ctx, other); err != nil {
 				fmt.Println("connection err:", err)
 			}
@@ -102,6 +109,9 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 			continue
 		}
 		if len(peer.Addrs) <= 0 {
+			continue
+		}
+		if d.h.Network().Connectedness(peer.ID) == network.Connected{
 			continue
 		}
 		if err := d.h.Connect(d.ctx, peer); err != nil {

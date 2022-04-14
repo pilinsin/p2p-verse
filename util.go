@@ -1,6 +1,7 @@
 package p2pverse
 
 import (
+	"io"
 	"crypto/rand"
 	"encoding/base64"
 
@@ -22,6 +23,13 @@ func RandString(bSize int) string {
 	rand.Read(bs)
 	return base64.URLEncoding.EncodeToString(bs)
 }
+
+func HostImporter(h host.Host) func(... io.Reader) (host.Host, error){
+	return func(... io.Reader) (host.Host, error){
+		return h, nil
+	}
+}
+
 
 func AddrInfo(pid peer.ID, maddrs ...ma.Multiaddr) peer.AddrInfo {
 	return peer.AddrInfo{
