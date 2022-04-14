@@ -17,7 +17,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
-type hostGenerator func(...io.Reader) (host.Host, error)
+type HostGenerator func(...io.Reader) (host.Host, error)
 
 type Ipfs interface {
 	Close()
@@ -38,7 +38,7 @@ type ipfsStore struct {
 	ipfs     *ipfslt.Peer
 }
 
-func NewIpfsStore(hGen hostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
+func NewIpfsStore(hGen HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
 	h, err := hGen()
 	if err != nil {
 		return nil, err

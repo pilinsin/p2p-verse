@@ -18,14 +18,14 @@ import (
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery ->
 // -> JoinTopic -> Subscribe -> Publish/Get
 
-type hostGenerator func(...io.Reader) (host.Host, error)
+type HostGenerator func(...io.Reader) (host.Host, error)
 
 type api struct {
 	ctx context.Context
 	ps  *p2ppubsub.PubSub
 }
 
-func NewPubSub(hGen hostGenerator, bootstraps ...peer.AddrInfo) (*api, error) {
+func NewPubSub(hGen HostGenerator, bootstraps ...peer.AddrInfo) (*api, error) {
 	self, err := hGen()
 	if err != nil {
 		return nil, err

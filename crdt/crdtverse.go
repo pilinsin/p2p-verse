@@ -26,17 +26,17 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
-type hostGenerator func(...io.Reader) (host.Host, error)
+type HostGenerator func(...io.Reader) (host.Host, error)
 
 type crdtVerse struct {
-	hGenerator hostGenerator
+	hGenerator HostGenerator
 	dirPath    string
 	save       bool
 	useMemory  bool
 	bootstraps []peer.AddrInfo
 }
 
-func NewVerse(hGen hostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse {
+func NewVerse(hGen HostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse {
 	return &crdtVerse{hGen, dir, save, useMemory, bootstraps}
 }
 func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
