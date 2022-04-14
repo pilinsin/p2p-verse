@@ -21,6 +21,11 @@ func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessCo
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].Tc
 }
 
+type IUpdatableSignatureStore interface {
+	IUpdatableStore
+	QueryWithoutTc(...query.Query) (query.Results, error)
+}
+
 type updatableSignatureStore struct {
 	*updatableStore
 	priv IPrivKey
@@ -237,7 +242,6 @@ func (s *updatableSignatureStore) QueryWithoutTc(qs ...query.Query) (query.Resul
 
 	return s.baseQuery(q)
 }
-
 
 func (s *updatableSignatureStore) baseQueryAll(q query.Query) (query.Results, error) {
 	if s.ac != nil {

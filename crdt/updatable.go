@@ -84,6 +84,11 @@ func (v *updatableValidator) Validate(key string, val []byte) bool {
 	return isUTC && isBefore
 }
 
+type IUpdatableStore interface {
+	IStore
+	QueryAll(...query.Query) (query.Results, error)
+}
+
 type updatableStore struct {
 	*logStore
 }

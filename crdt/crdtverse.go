@@ -51,7 +51,7 @@ func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
 	}
 	dsCancel := func() {}
 	if !cv.save {
-		dsCancel = func() {os.RemoveAll(dirAddr)}
+		dsCancel = func() { os.RemoveAll(dirAddr) }
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -174,10 +174,6 @@ type IStore interface {
 	Query(...query.Query) (query.Results, error)
 	InitPut(string) error
 	LoadCheck() bool
-}
-type IUpdatableStore interface {
-	IStore
-	QueryAll(...query.Query) (query.Results, error)
 }
 
 type StoreOpts struct {
