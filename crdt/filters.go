@@ -8,12 +8,12 @@ import (
 
 //data key: (<pid>)/<category>/(<tKey>)
 type KeyMatchFilter struct {
-	key string
+	Key string
 }
 
 func (f KeyMatchFilter) Filter(e query.Entry) bool {
 	keys := strings.Split(strings.TrimPrefix(e.Key, "/"), "/")
-	fKeys := strings.Split(strings.TrimPrefix(f.key, "/"), "/")
+	fKeys := strings.Split(strings.TrimPrefix(f.Key, "/"), "/")
 	if len(keys) < len(fKeys) {
 		return false
 	}
@@ -27,13 +27,13 @@ func (f KeyMatchFilter) Filter(e query.Entry) bool {
 }
 
 type KeyExistFilter struct {
-	key string
+	Key string
 }
 
 func (f KeyExistFilter) Filter(e query.Entry) bool {
 	keys := strings.Split(strings.TrimPrefix(e.Key, "/"), "/")
 	for _, eKey := range keys {
-		if eKey == f.key {
+		if eKey == f.Key {
 			return true
 		}
 	}
@@ -41,9 +41,9 @@ func (f KeyExistFilter) Filter(e query.Entry) bool {
 }
 
 type ValueMatchFilter struct {
-	val []byte
+	Val []byte
 }
 
 func (f ValueMatchFilter) Filter(e query.Entry) bool {
-	return bytes.Equal(e.Value, f.val)
+	return bytes.Equal(e.Value, f.Val)
 }
