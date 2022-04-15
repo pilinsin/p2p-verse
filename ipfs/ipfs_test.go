@@ -25,7 +25,7 @@ func TestIpfs(t *testing.T) {
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	ipfs, kwCid, err := NewIpfs(pv.SampleHost, "ipfs", "dht-kw", true, false, bAddrInfo)
+	ipfs, err := NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", true, false, bAddrInfo)
 	checkError(t, err)
 
 	c, err := ipfs.Add([]byte("meow meow ^.^"))
@@ -34,11 +34,11 @@ func TestIpfs(t *testing.T) {
 	ipfs.Close()
 	time.Sleep(time.Minute)
 
-	ipfs, err = LoadIpfs(pv.SampleHost, "ipfs", "dht-kw", kwCid, false, false, bAddrInfo)
+	ipfs, err = NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", false, false, bAddrInfo)
 	checkError(t, err)
 	defer ipfs.Close()
 
-	ipfs2, err := LoadIpfs(pv.SampleHost, "ipfs2", "dht-kw", kwCid, false, false, bAddrInfo)
+	ipfs2, err := NewIpfsStore(pv.SampleHost, "ipfs2", "dht-kw", false, false, bAddrInfo)
 	checkError(t, err)
 	defer ipfs2.Close()
 
