@@ -135,7 +135,7 @@ func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStor
 		select {
 		case <-ctx.Done():
 			s.Close()
-			return nil, errors.New("loadStore error: sync timeout (store)")
+			return nil, errors.New("load error: sync timeout (store)")
 		case <-ticker.C:
 			if err := s.Sync(); err != nil {
 				s.Close()
