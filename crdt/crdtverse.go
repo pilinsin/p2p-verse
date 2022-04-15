@@ -104,7 +104,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 		errS := err.Error()
 		if errS == timeout || strings.HasPrefix(errS, dirLock) {
 			fmt.Println(err, ", now reloading...")
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 10)
 			continue
 		}
 		if err != nil {
@@ -118,7 +118,7 @@ func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStor
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(time.Second * 3)
 	for {

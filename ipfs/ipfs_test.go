@@ -1,7 +1,6 @@
 package ipfsverse
 
 import (
-	"time"
 	"testing"
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -32,7 +31,6 @@ func TestIpfs(t *testing.T) {
 	checkError(t, err)
 	t.Log("add,", c)
 	ipfs.Close()
-	time.Sleep(time.Minute)
 
 	ipfs, err = NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", false, false, bAddrInfo)
 	checkError(t, err)

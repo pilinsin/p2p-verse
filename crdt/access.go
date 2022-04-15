@@ -97,7 +97,7 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	acst := &accessController{sgst, ap.GetName(), ap.GetSalt(), ap.GetExample()}
 
 	if acst.exmpl != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 		ticker := time.NewTicker(time.Second * 4)
 		for {
