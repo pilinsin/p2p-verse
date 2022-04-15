@@ -1,12 +1,11 @@
 package ipfsverse
 
 import (
-	"fmt"
+	"time"
 	"bytes"
 	"context"
 	"io"
 	"os"
-	"time"
 
 	pv "github.com/pilinsin/p2p-verse"
 
@@ -86,8 +85,10 @@ func (s *ipfsStore) Close() {
 }
 
 func (s *ipfsStore) AddReader(r io.Reader) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
 	ap := ipfslt.AddParams{HashFun: "keccak-256"}
-	nd, err := s.ipfs.AddFile(s.ctx, r, &ap)
+	nd, err := s.ipfs.AddFile(ctx, r, &ap)
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +103,9 @@ func (s *ipfsStore) GetReader(cidStr string) (uio.ReadSeekCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.ipfs.GetFile(s.ctx, c)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
+	return s.ipfs.GetFile(ctx, c)
 }
 func (s *ipfsStore) Get(cidStr string) ([]byte, error) {
 	r, err := s.GetReader(cidStr)
@@ -119,5 +122,7 @@ func (s *ipfsStore) Has(cidStr string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return s.ipfs.HasBlock(s.ctx, c)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
+	return s.ipfs.HasBlock(ctx, c)
 }
