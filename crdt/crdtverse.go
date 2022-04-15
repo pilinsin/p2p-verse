@@ -108,6 +108,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 				return db, nil
 			}
 			errS := err.Error()
+			fmt.Println("has prefix:", strings.HasPrefix(errS, dirLock))
 			if errS == timeout || strings.HasPrefix(errS, dirLock) {
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 10)
