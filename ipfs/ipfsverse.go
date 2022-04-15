@@ -1,10 +1,12 @@
 package ipfsverse
 
 import (
+	"fmt"
 	"bytes"
 	"context"
 	"io"
 	"os"
+	"time"
 
 	pv "github.com/pilinsin/p2p-verse"
 
@@ -38,7 +40,49 @@ type ipfsStore struct {
 	ipfs     *ipfslt.Peer
 }
 
-func NewIpfsStore(hGen HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
+func NewIpfs(hGen HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, string, error) {
+	is, err := newIpfsStore(hGen, dirPath, keyword, save, useMemory, bootstraps...)
+	if err != nil{return nil, "", err}
+	cid, err := is.Add(pv.RandBytes(16))
+	if err != nil{return nil, "", err}
+	return is, cid, nil
+}
+func LoadIpfs(hGen HostGenerator, dirPath, keyword, cid string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	defer cancel()
+	for {
+		select{
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			is, err := newIpfsStore(hGen, dirPath, keyword, save, useMemory, bootstraps...)
+			if ok := loadCheck(is, cid); !ok || err != nil {
+				fmt.Println("ipfs load failed: now reloading...")
+				time.Sleep(time.Second * 5)
+				continue
+			}
+			return is, nil
+		}
+	}
+}
+func loadCheck(is Ipfs, cid string) bool{
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	ticker := time.NewTicker(time.Second * 3)
+	for {
+		select {
+		case <-ctx.Done():
+			is.Close()
+			return false
+		case <-ticker.C:
+			if _, err := is.Get(cid); err == nil {
+				return true
+			}
+		}
+	}
+}
+
+func newIpfsStore(hGen HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
 	h, err := hGen()
 	if err != nil {
 		return nil, err
