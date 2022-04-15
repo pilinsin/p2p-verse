@@ -112,9 +112,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 10)
 
-				name := strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
-				dirAddr := filepath.Join(cv.dirPath, name)
-				os.RemoveAll(dirAddr)
+				os.RemoveAll(cv.dirPath)
 				continue
 			}
 			if err != nil {
@@ -137,7 +135,7 @@ func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStor
 		select {
 		case <-ctx.Done():
 			s.Close()
-			return nil, errors.New("load error: sync timeout")
+			return nil, errors.New("loadStore error: sync timeout (store)")
 		case <-ticker.C:
 			if err := s.Sync(); err != nil {
 				s.Close()

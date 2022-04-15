@@ -100,12 +100,12 @@ func (cv *crdtVerse) LoadAccessController(acAddr string) (*accessController, err
 	if acst.exmpl != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		ticker := time.NewTicker(time.Second * 4)
+		ticker := time.NewTicker(time.Second)
 		for {
 			select {
 			case <-ctx.Done():
 				acst.Close()
-				return nil, errors.New("load error: sync timeout")
+				return nil, errors.New("load error: sync timeout (access)")
 			case <-ticker.C:
 				if err := acst.Sync(); err != nil {
 					acst.Close()
