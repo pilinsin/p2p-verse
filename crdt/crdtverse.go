@@ -96,25 +96,37 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 }
 
 func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	defer cancel()
 	for {
-		db, err := cv.baseLoadStore(addr, mode, opts...)
-		if err == nil {
-			return db, nil
-		}
-		errS := err.Error()
-		if errS == timeout || strings.HasPrefix(errS, dirLock) {
-			fmt.Println(err, ", now reloading...")
-			time.Sleep(time.Second * 10)
-			continue
-		}
-		if err != nil {
-			return nil, err
+		select{
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			db, err := cv.baseLoadStore(addr, mode, opts...)
+			if err == nil {
+				return db, nil
+			}
+			errS := err.Error()
+			if errS == timeout || strings.HasPrefix(errS, dirLock) {
+				fmt.Println(err, ", now reloading...")
+				time.Sleep(time.Second * 10)
+
+				name := strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
+				dirAddr := filepath.Join(cv.dirPath, name)
+				os.RemoveAll(dirAddr)
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 }
 func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	s, err := cv.selectLoadStore(addr, mode, opts...)
 	if err != nil {
+		if s != nil{s.Close()}
 		return nil, err
 	}
 
