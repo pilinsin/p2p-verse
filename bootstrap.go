@@ -53,6 +53,7 @@ func NewBootstrap(hGen HostGenerator) (*bootstrap, error) {
 }
 func (b *bootstrap) Close() {
 	b.dht.Close()
+	b.h = nil
 }
 func (b *bootstrap) AddrInfo() peer.AddrInfo {
 	return HostToAddrInfo(b.h)

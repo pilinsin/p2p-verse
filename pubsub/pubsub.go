@@ -43,7 +43,7 @@ func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (*api, error)
 }
 func (a *api) Close(){
 	a.ps = nil
-	a.h.Close()
+	a.h = nil
 }
 func (a *api) Topics() []string {
 	return a.ps.GetTopics()
