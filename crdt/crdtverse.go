@@ -118,7 +118,17 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 		opt.Tc = tc
 	}
 
-	return cv.baseLoadStore(addrs[0], mode, opt)
+	s, err := cv.baseLoadStore(addrs[0], mode, opt)
+	if err != nil{
+		if opt.Ac != nil{
+			opt.Ac.Close()
+		}
+		if opt.Tc != nil{
+			opt.Tc.Close()
+		}
+		return nil, err
+	}
+	return s, nil
 }
 
 func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
