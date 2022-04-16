@@ -16,15 +16,14 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 }
 
 //go test -test.v=true .
-func TestIpfs(t *testing.T) {
-	b, err := pv.SampleHost()
+func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator){
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	ipfs, err := NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", true, false, bAddrInfo)
+	ipfs, err := NewIpfsStore(hGen, "ipfs", "dht-kw", true, false, bAddrInfo)
 	checkError(t, err)
 
 	c, err := ipfs.Add([]byte("meow meow ^.^"))
@@ -32,11 +31,11 @@ func TestIpfs(t *testing.T) {
 	t.Log("add,", c)
 	ipfs.Close()
 
-	ipfs, err = NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", false, false, bAddrInfo)
+	ipfs, err = NewIpfsStore(hGen, "ipfs", "dht-kw", false, false, bAddrInfo)
 	checkError(t, err)
 	defer ipfs.Close()
 
-	ipfs2, err := NewIpfsStore(pv.SampleHost, "ipfs2", "dht-kw", false, false, bAddrInfo)
+	ipfs2, err := NewIpfsStore(hGen, "ipfs2", "dht-kw", false, false, bAddrInfo)
 	checkError(t, err)
 	defer ipfs2.Close()
 
@@ -45,4 +44,8 @@ func TestIpfs(t *testing.T) {
 	t.Log("get,", string(v))
 
 	t.Log("finished")
+}
+
+func TestIpfs(t *testing.T) {
+	BaseTestIpfs(t, pv.SampleHost)
 }

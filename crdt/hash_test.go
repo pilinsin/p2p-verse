@@ -8,21 +8,24 @@ import (
 )
 
 func TestHashStore(t *testing.T) {
-	b, err := pv.SampleHost()
+	BaseTestHashStore(t, pv.SampleHost)
+}
+
+func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
 	opts := &StoreOpts{}
-	db0 := newStore(t, "hs/ha", "hs", "hash", baiStr, opts)
+	db0 := newStore(t, hGen, "hs/ha", "hs", "hash", baiStr, opts)
 	defer db0.Close()
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, "hs/hb", db0.Address(), "hash", baiStr, opts)
+	db1 := loadStore(t, hGen, "hs/hb", db0.Address(), "hash", baiStr, opts)
 	defer db1.Close()
 	t.Log("db1 generated")
 

@@ -9,20 +9,23 @@ import (
 )
 
 func TestLogStore(t *testing.T) {
-	b, err := pv.SampleHost()
+	BaseTestLogStore(t, pv.SampleHost)
+}
+
+func BaseTestLogStore(t *testing.T, hGen pv.HostGenerator) {
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
-	db0 := newStore(t, "ls/la", "lg", "log", baiStr)
+	db0 := newStore(t, hGen, "ls/la", "lg", "log", baiStr)
 	defer db0.Close()
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, "ls/lb", db0.Address(), "log", baiStr)
+	db1 := loadStore(t, hGen, "ls/lb", db0.Address(), "log", baiStr)
 	defer db1.Close()
 	t.Log("db1 generated")
 

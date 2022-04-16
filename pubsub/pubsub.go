@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"context"
-	"io"
 	"sort"
 	"time"
 
@@ -18,14 +17,14 @@ import (
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery ->
 // -> JoinTopic -> Subscribe -> Publish/Get
 
-type HostGenerator func(...io.Reader) (host.Host, error)
 
 type api struct {
 	ctx context.Context
+	h host.Host
 	ps  *p2ppubsub.PubSub
 }
 
-func NewPubSub(hGen HostGenerator, bootstraps ...peer.AddrInfo) (*api, error) {
+func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (*api, error) {
 	self, err := hGen()
 	if err != nil {
 		return nil, err
@@ -39,8 +38,12 @@ func NewPubSub(hGen HostGenerator, bootstraps ...peer.AddrInfo) (*api, error) {
 	if err := pv.Discovery(self, "pubsub:ejvoaenvaeo;vn;aeo", bootstraps); err != nil {
 		return nil, err
 	} else {
-		return &api{ctx, gossip}, nil
+		return &api{ctx, self, gossip}, nil
 	}
+}
+func (a *api) Close(){
+	a.ps = nil
+	a.h.Close()
 }
 func (a *api) Topics() []string {
 	return a.ps.GetTopics()

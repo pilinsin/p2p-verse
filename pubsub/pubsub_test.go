@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"fmt"
-	pv "github.com/pilinsin/p2p-verse"
 	"time"
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 func checkError(t *testing.T, err error, args ...interface{}) {
@@ -19,20 +19,20 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 }
 
 //go test -test.v=true .
-func TestPubSub(t *testing.T) {
-	N := 10
-
-	b, err := pv.SampleHost()
+func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
 	<-time.Tick(time.Second * 5)
 
-	ps0, err01 := NewPubSub(pv.SampleHost, bAddrInfo)
+	N := 10
+
+	ps0, err01 := NewPubSub(hGen, bAddrInfo)
 	checkError(t, err01)
+	defer ps0.Close()
 	tpc0, err02 := ps0.JoinTopic("test topic")
 	checkError(t, err02)
 	go func() {
@@ -56,8 +56,9 @@ func TestPubSub(t *testing.T) {
 
 	<-time.Tick(time.Second * 10)
 
-	ps1, err11 := NewPubSub(pv.SampleHost, bAddrInfo)
+	ps1, err11 := NewPubSub(hGen, bAddrInfo)
 	checkError(t, err11)
+	defer ps1.Close()
 
 	tpc1, err12 := ps1.JoinTopic("test topic")
 	checkError(t, err12)
@@ -69,4 +70,8 @@ func TestPubSub(t *testing.T) {
 
 	<-time.Tick(10 * time.Second)
 	t.Log("finished")
+}
+
+func TestPubSub(t *testing.T){
+	BaseTestPubSub(t, pv.SampleHost)
 }

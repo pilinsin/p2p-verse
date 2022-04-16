@@ -14,11 +14,9 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger2"
 	uio "github.com/ipfs/go-unixfs/io"
-	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
-type HostGenerator func(...io.Reader) (host.Host, error)
 
 type Ipfs interface {
 	Close()
@@ -39,7 +37,7 @@ type ipfsStore struct {
 	ipfs     *ipfslt.Peer
 }
 
-func NewIpfsStore(hGen HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
+func NewIpfsStore(hGen pv.HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
 	h, err := hGen()
 	if err != nil {
 		return nil, err

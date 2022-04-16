@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
-	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -26,17 +24,15 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
-type HostGenerator func(...io.Reader) (host.Host, error)
-
 type crdtVerse struct {
-	hGenerator HostGenerator
+	hGenerator pv.HostGenerator
 	dirPath    string
 	save       bool
 	useMemory  bool
 	bootstraps []peer.AddrInfo
 }
 
-func NewVerse(hGen HostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse {
+func NewVerse(hGen pv.HostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse {
 	return &crdtVerse{hGen, dir, save, useMemory, bootstraps}
 }
 func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {

@@ -85,6 +85,7 @@ func NewDHT(h host.Host) (*DiscoveryDHT, error) {
 }
 func (d *DiscoveryDHT) Close() {
 	d.d.Close()
+	d.h.Close()
 }
 func (d *DiscoveryDHT) DHT() *kad.IpfsDHT {
 	return d.d

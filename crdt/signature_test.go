@@ -7,24 +7,26 @@ import (
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
 )
-
 func TestSignatureStore(t *testing.T) {
-	b, err := pv.SampleHost()
+	BaseTestSignatureStore(t, pv.SampleHost)
+}
+
+func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
 	opts0 := &StoreOpts{}
-	db0 := newStore(t, "ss/sa", "sg", "signature", baiStr, opts0)
+	db0 := newStore(t, hGen, "ss/sa", "sg", "signature", baiStr, opts0)
 	defer db0.Close()
 	t.Log("db0 generated")
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
 
-	db1 := loadStore(t, "ss/sb", db0.Address(), "signature", baiStr)
+	db1 := loadStore(t, hGen, "ss/sb", db0.Address(), "signature", baiStr)
 	defer db1.Close()
 	t.Log("db1 generated")
 

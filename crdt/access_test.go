@@ -7,9 +7,12 @@ import (
 )
 
 func TestAccessController(t *testing.T) {
-	b, err := pv.SampleHost()
+	BaseTestAccessController(t, pv.SampleHost)
+}
+
+func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
@@ -17,15 +20,15 @@ func TestAccessController(t *testing.T) {
 
 	priv, pub, _ := generateKeyPair()
 	pid := PubKeyToStr(pub)
-	ac := newAccessController(t, "ac/c", "ac", baiStr, pid)
+	ac := newAccessController(t, hGen, "ac/c", "ac", baiStr, pid)
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac}
-	db0 := newStore(t, "ac/aa", "us", "updatableSignature", baiStr, opts0)
+	db0 := newStore(t, hGen, "ac/aa", "us", "updatableSignature", baiStr, opts0)
 	defer db0.Close()
 	t.Log("db0 generated")
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
 
-	db1 := loadStore(t, "ac/ab", db0.Address(), "updatableSignature", baiStr)
+	db1 := loadStore(t, hGen, "ac/ab", db0.Address(), "updatableSignature", baiStr)
 	defer db1.Close()
 	t.Log("db1 generated")
 

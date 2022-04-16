@@ -12,6 +12,8 @@ import (
 	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
 
+type HostGenerator func(seeds ...io.Reader) (host.Host, error)
+
 func getSeed(seeds ...io.Reader) io.Reader {
 	if len(seeds) == 0 {
 		return rand.Reader
@@ -37,7 +39,10 @@ type bootstrap struct {
 	dht *kad.IpfsDHT
 }
 
-func NewBootstrap(h host.Host) (*bootstrap, error) {
+func NewBootstrap(hGen HostGenerator) (*bootstrap, error) {
+	h, err := hGen()
+	if err != nil{return nil, err}
+	
 	ctx := context.Background()
 	d, err := kad.New(ctx, h)
 	if err != nil {

@@ -8,10 +8,13 @@ import (
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-func TestTimeController(t *testing.T) {
-	b, err := pv.SampleHost()
+func TestTimeController(t *testing.T){
+	BaseTestTimeController(t, pv.SampleHost)
+}
+
+func BaseTestTimeController(t *testing.T, hGen pv.HostGenerator) {
+	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
-	bstrp, err := pv.NewBootstrap(b)
 	defer bstrp.Close()
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
@@ -19,16 +22,16 @@ func TestTimeController(t *testing.T) {
 
 	priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
 	pid := PubKeyToStr(pub)
-	ac := newAccessController(t, "tc/c", "ac", baiStr, pid)
+	ac := newAccessController(t, hGen, "tc/c", "ac", baiStr, pid)
 	begin := time.Now()
 	end := begin.Add(time.Hour)
-	tc := newTimeController(t, "tc/t", "tc", baiStr, begin, end)
+	tc := newTimeController(t, hGen, "tc/t", "tc", baiStr, begin, end)
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac, Tc: tc}
-	db0 := newStore(t, "tc/ta", "us", "updatableSignature", baiStr, opts0)
+	db0 := newStore(t, hGen, "tc/ta", "us", "updatableSignature", baiStr, opts0)
 	defer db0.Close()
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, "tc/tb", db0.Address(), "updatableSignature", baiStr)
+	db1 := loadStore(t, hGen, "tc/tb", db0.Address(), "updatableSignature", baiStr)
 	defer db1.Close()
 	t.Log("db1 generated")
 
