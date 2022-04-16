@@ -1,6 +1,9 @@
 package crdtverse
 
 import (
+	"fmt"
+	"path/filepath"
+	"os"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -68,7 +71,7 @@ type timeController struct {
 
 func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, cooldown time.Duration, n int) (*timeController, error) {
 	exmpl := pv.RandString(32)
-	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 32)
+	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 16)
 	name = base64.URLEncoding.EncodeToString(hash)
 
 	st, err := cv.NewUpdatableSignatureStore(name)
@@ -85,7 +88,7 @@ func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, c
 	}
 	return tc, nil
 }
-func (cv *crdtVerse) LoadTimeController(tAddr string) (*timeController, error) {
+func (cv *crdtVerse) loadTimeController(tAddr string) (*timeController, error) {
 	m, err := base64.URLEncoding.DecodeString(tAddr)
 	if err != nil {
 		return nil, err
@@ -95,27 +98,49 @@ func (cv *crdtVerse) LoadTimeController(tAddr string) (*timeController, error) {
 		return nil, err
 	}
 
-	s, err := cv.NewUpdatableSignatureStore(tp.Name)
-	if err != nil {
-		return nil, err
-	}
-	usst := s.(*updatableSignatureStore)
-	ctx, cancel := context.WithCancel(context.Background())
-	tc := &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}
-	if err := tc.initLoad(); err != nil {
-		return nil, err
-	}
-	return tc, nil
+	return cv.baseLoadTime(tp)
 }
-func (tc *timeController) initLoad() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+func (cv *crdtVerse) baseLoadTime(tp *pb.TimeParams) (*timeController, error){
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	defer cancel()
+	for {
+		select{
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			s, err := cv.NewUpdatableSignatureStore(tp.Name)
+			if err != nil {
+				return nil, err
+			}
+			usst := s.(*updatableSignatureStore)
+			ctx, cancel := context.WithCancel(context.Background())
+			tc := &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}
+			
+			err = tc.loadCheck()
+			if err == nil{return tc, nil}
+			
+			errS := err.Error()
+			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
+				fmt.Println(err, ", now reloading...")
+				time.Sleep(time.Second * 5)
+
+				dirAddr := filepath.Join(cv.dirPath, tp.Name)
+				os.RemoveAll(dirAddr)
+				continue
+			}
+			return nil, err
+		}
+	}
+}
+func (tc *timeController) loadCheck() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(time.Second * 2)
 	for {
 		select {
 		case <-ctx.Done():
 			tc.Close()
-			return errors.New("load error: sync timeout")
+			return errors.New("load error: sync timeout (time)")
 		case <-ticker.C:
 			if err := tc.pStore.Sync(); err != nil {
 				tc.Close()

@@ -2,7 +2,6 @@ package crdtverse
 
 import (
 	"errors"
-	"strings"
 
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
@@ -49,31 +48,7 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 	}
 	return s, nil
 }
-func (cv *crdtVerse) LoadUpdatableSignatureStore(addr string, opts ...*StoreOpts) (IUpdatableStore, error) {
-	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
-	s, err := cv.NewUpdatableSignatureStore(addrs[0], opts...)
-	if err != nil {
-		return nil, err
-	}
-	if len(addrs) >= 2 {
-		ac, err := cv.LoadAccessController(addrs[1])
-		if err != nil {
-			return nil, err
-		}
-		s.(*updatableSignatureStore).ac = ac
 
-		if len(addrs) >= 3 {
-			tc, err := cv.LoadTimeController(addrs[2])
-			if err != nil {
-				return nil, err
-			}
-			s.(*updatableSignatureStore).tc = tc
-			tc.dStore = s.(*updatableSignatureStore)
-			tc.AutoGrant()
-		}
-	}
-	return s, nil
-}
 func (s *updatableSignatureStore) Close() {
 	if s.tc != nil {
 		s.tc.Close()

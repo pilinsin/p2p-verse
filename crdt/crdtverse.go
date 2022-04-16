@@ -95,7 +95,33 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 	}
 }
 
-func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
+func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error){
+	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
+	if len(addrs) == 0{return nil, errors.New("invalid addr")}
+
+	opt := &StoreOpts{}
+	if len(opts) > 0{
+		opt = opts[0]
+	}
+
+	if len(addrs) > 1{
+		ac, err := cv.loadAccessController(addrs[1])
+		if err != nil{return nil, err}
+		opt.Ac = ac
+	}
+	if len(addrs) > 2{
+		tc, err := cv.loadTimeController(addrs[2])
+		if err != nil && opt.Ac != nil{
+			opt.Ac.Close()
+			return nil, err
+		}
+		opt.Tc = tc
+	}
+
+	return cv.baseLoadStore(addrs[0], mode, opt)
+}
+
+func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 	for {
@@ -103,32 +129,29 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			db, err := cv.baseLoadStore(addr, mode, opts...)
-			if err == nil {
-				return db, nil
-			}
-			errS := err.Error()
-			fmt.Println("has prefix:", strings.HasPrefix(errS, dirLock))
-			if errS == timeout || strings.HasPrefix(errS, dirLock) {
-				fmt.Println(err, ", now reloading...")
-				time.Sleep(time.Second * 10)
-
-				os.RemoveAll(cv.dirPath)
-				continue
-			}
+			db, err := cv.selectNewStore(addr, mode, opts...)
 			if err != nil {
+				if db != nil{db.Close()}
 				return nil, err
 			}
+
+			err = cv.loadCheck(db)
+			if err == nil{return db, nil}
+			
+			errS := err.Error()
+			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
+				fmt.Println(err, ", now reloading...")
+				time.Sleep(time.Second * 5)
+
+				dirAddr := filepath.Join(cv.dirPath, addr)
+				os.RemoveAll(dirAddr)
+				continue
+			}
+			return nil, err
 		}
 	}
 }
-func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
-	s, err := cv.selectLoadStore(addr, mode, opts...)
-	if err != nil {
-		if s != nil{s.Close()}
-		return nil, err
-	}
-
+func (cv *crdtVerse) loadCheck(s IStore) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(time.Second * 3)
@@ -136,33 +159,20 @@ func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStor
 		select {
 		case <-ctx.Done():
 			s.Close()
-			return nil, errors.New("load error: sync timeout (store)")
+			return errors.New("load error: sync timeout (store)")
 		case <-ticker.C:
 			if err := s.Sync(); err != nil {
 				s.Close()
-				return nil, err
+				return err
 			}
 
 			if ok := s.LoadCheck(); ok {
-				return s, nil
+				return nil
 			}
 		}
 	}
 }
-func (cv *crdtVerse) selectLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
-	switch mode {
-	case "updatable":
-		return cv.LoadUpdatableStore(addr, opts...)
-	case "signature":
-		return cv.LoadSignatureStore(addr, opts...)
-	case "updatableSignature":
-		return cv.LoadUpdatableSignatureStore(addr, opts...)
-	case "hash":
-		return cv.LoadHashStore(addr, opts...)
-	default:
-		return cv.LoadLogStore(addr, opts...)
-	}
-}
+
 
 type iValidator interface {
 	Validate(string, []byte) bool
@@ -208,10 +218,7 @@ type logStore struct {
 func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (IStore, error) {
 	return cv.newCRDT(name, &logValidator{})
 }
-func (cv *crdtVerse) LoadLogStore(addr string, _ ...*StoreOpts) (IStore, error) {
-	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
-	return cv.NewLogStore(addr)
-}
+
 func (s *logStore) Close() {
 	s.cancel()
 	s.dt.Close()

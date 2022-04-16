@@ -100,10 +100,7 @@ func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (IUpdatable
 	}
 	return &updatableStore{st}, nil
 }
-func (cv *crdtVerse) LoadUpdatableStore(addr string, _ ...*StoreOpts) (IUpdatableStore, error) {
-	addr = strings.Split(strings.TrimPrefix(addr, "/"), "/")[0]
-	return cv.NewUpdatableStore(addr)
-}
+
 func (s *updatableStore) Put(key string, val []byte) error {
 	tb, err := time.Now().UTC().MarshalBinary()
 	if err != nil {

@@ -81,21 +81,7 @@ func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (IStore,
 	}
 	return &signatureStore{st, priv, pub, ac}, nil
 }
-func (cv *crdtVerse) LoadSignatureStore(addr string, opts ...*StoreOpts) (IStore, error) {
-	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
-	s, err := cv.NewSignatureStore(addrs[0], opts...)
-	if err != nil {
-		return nil, err
-	}
-	if len(addrs) >= 2 {
-		ac, err := cv.LoadAccessController(addrs[1])
-		if err != nil {
-			return nil, err
-		}
-		s.(*signatureStore).ac = ac
-	}
-	return s, nil
-}
+
 func (s *signatureStore) Close() {
 	if s.ac != nil {
 		s.ac.Close()

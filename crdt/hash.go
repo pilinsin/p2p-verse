@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"strings"
 
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
@@ -58,21 +57,7 @@ func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, erro
 	}
 	return &hashStore{st, salt, ac}, nil
 }
-func (cv *crdtVerse) LoadHashStore(addr string, opts ...*StoreOpts) (IStore, error) {
-	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
-	s, err := cv.NewHashStore(addrs[0], opts...)
-	if err != nil {
-		return nil, err
-	}
-	if len(addrs) >= 2 {
-		ac, err := cv.LoadAccessController(addrs[1])
-		if err != nil {
-			return nil, err
-		}
-		s.(*hashStore).ac = ac
-	}
-	return s, nil
-}
+
 func (s *hashStore) Close() {
 	if s.ac != nil {
 		s.ac.Close()
