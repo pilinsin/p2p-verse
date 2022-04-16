@@ -88,7 +88,7 @@ func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, c
 	}
 	return tc, nil
 }
-func (cv *crdtVerse) loadTimeController(tAddr string) (*timeController, error) {
+func (cv *crdtVerse) loadTimeController(ctx context.Context, tAddr string) (*timeController, error) {
 	m, err := base64.URLEncoding.DecodeString(tAddr)
 	if err != nil {
 		return nil, err
@@ -98,11 +98,9 @@ func (cv *crdtVerse) loadTimeController(tAddr string) (*timeController, error) {
 		return nil, err
 	}
 
-	return cv.baseLoadTime(tp)
+	return cv.baseLoadTime(ctx, tp)
 }
-func (cv *crdtVerse) baseLoadTime(tp *pb.TimeParams) (*timeController, error){
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
-	defer cancel()
+func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*timeController, error){
 	for {
 		select{
 		case <-ctx.Done():

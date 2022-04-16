@@ -85,7 +85,7 @@ func (s *accessController) put(key string, val []byte) error {
 	hashKey := base64.URLEncoding.EncodeToString(hash)
 	return s.store.Put(hashKey, val)
 }
-func (cv *crdtVerse) loadAccessController(acAddr string) (*accessController, error) {
+func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*accessController, error) {
 	m, err := base64.URLEncoding.DecodeString(acAddr)
 	if err != nil {
 		return nil, err
@@ -99,11 +99,9 @@ func (cv *crdtVerse) loadAccessController(acAddr string) (*accessController, err
 		return nil, err
 	}
 
-	return cv.baseLoadAccess(ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
+	return cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
 }
-func (cv *crdtVerse) baseLoadAccess(addr string, salt []byte, opts ...*StoreOpts) (*accessController, error){
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
-	defer cancel()
+func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byte, opts ...*StoreOpts) (*accessController, error){
 	for {
 		select{
 		case <-ctx.Done():

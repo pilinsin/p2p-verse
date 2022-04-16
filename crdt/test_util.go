@@ -3,6 +3,7 @@ package crdtverse
 import (
 	"testing"
 	"time"
+	"context"
 
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -27,7 +28,7 @@ func newStore(t *testing.T, hGen pv.HostGenerator, baseDir, name, mode, bAddrInf
 func loadStore(t *testing.T, hGen pv.HostGenerator, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(hGen, baseDir, false, false, bai)
-	db, err := v.LoadStore(addr, mode, opts...)
+	db, err := v.LoadStore(context.Background(), addr, mode, opts...)
 	checkError(t, err)
 	return db
 }

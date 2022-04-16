@@ -91,7 +91,7 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 	}
 }
 
-func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*StoreOpts) (IStore, error){
 	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
 	if len(addrs) == 0{return nil, errors.New("invalid addr")}
 
@@ -101,12 +101,12 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 	}
 
 	if len(addrs) > 1{
-		ac, err := cv.loadAccessController(addrs[1])
+		ac, err := cv.loadAccessController(ctx, addrs[1])
 		if err != nil{return nil, err}
 		opt.Ac = ac
 	}
 	if len(addrs) > 2{
-		tc, err := cv.loadTimeController(addrs[2])
+		tc, err := cv.loadTimeController(ctx, addrs[2])
 		if err != nil && opt.Ac != nil{
 			opt.Ac.Close()
 			return nil, err
@@ -114,7 +114,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 		opt.Tc = tc
 	}
 
-	s, err := cv.baseLoadStore(addrs[0], mode, opt)
+	s, err := cv.baseLoadStore(ctx, addrs[0], mode, opt)
 	if err != nil{
 		if opt.Ac != nil{
 			opt.Ac.Close()
@@ -127,9 +127,7 @@ func (cv *crdtVerse) LoadStore(addr, mode string, opts ...*StoreOpts) (IStore, e
 	return s, nil
 }
 
-func (cv *crdtVerse) baseLoadStore(addr, mode string, opts ...*StoreOpts) (IStore, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
-	defer cancel()
+func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	for {
 		select{
 		case <-ctx.Done():
