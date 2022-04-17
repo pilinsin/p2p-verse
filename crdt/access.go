@@ -2,8 +2,6 @@ package crdtverse
 
 import (
 	"fmt"
-	"path/filepath"
-	"os"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -119,9 +117,6 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 5)
-
-				dirAddr := filepath.Join(cv.dirPath, addr)
-				os.RemoveAll(dirAddr)
 				continue
 			}
 			return nil, err

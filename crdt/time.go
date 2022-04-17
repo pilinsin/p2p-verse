@@ -2,8 +2,6 @@ package crdtverse
 
 import (
 	"fmt"
-	"path/filepath"
-	"os"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -121,9 +119,6 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 5)
-
-				dirAddr := filepath.Join(cv.dirPath, tp.Name)
-				os.RemoveAll(dirAddr)
 				continue
 			}
 			return nil, err

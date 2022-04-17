@@ -147,9 +147,6 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 5)
-
-				dirAddr := filepath.Join(cv.dirPath, addr)
-				os.RemoveAll(dirAddr)
 				continue
 			}
 			return nil, err
