@@ -32,7 +32,7 @@ type ipfsStore struct {
 	ctx      context.Context
 	cancel   func()
 	dsCancel func()
-	h host.Hsot
+	h host.Host
 	dhtKW    string
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
