@@ -58,6 +58,9 @@ func (s *updatableSignatureStore) Close() {
 	}
 	s.updatableStore.Close()
 }
+func (s *updatableSignatureStore) Cancel() {
+	s.updatableStore.Cancel()
+}
 func (s *updatableSignatureStore) Address() string {
 	name := s.name
 	if s.ac != nil {

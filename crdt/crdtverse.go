@@ -135,16 +135,18 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			return nil, ctx.Err()
 		default:
 			db, err := cv.selectNewStore(addr, mode, opts...)
-			if err != nil {
-				if db != nil{db.Close()}
+			if err != nil{
+				if strings.HasPrefix(err.Error(), dirLock) {
+					fmt.Println(err, ", now reloading...")
+					time.Sleep(time.Second * 5)
+					continue
+				}
 				return nil, err
 			}
 
 			err = cv.loadCheck(db)
 			if err == nil{return db, nil}
-			
-			errS := err.Error()
-			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
+			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 5)
 				continue
@@ -160,7 +162,7 @@ func (cv *crdtVerse) loadCheck(s IStore) error {
 	for {
 		select {
 		case <-ctx.Done():
-			s.Close()
+			s.Cancel()
 			return errors.New("load error: sync timeout (store)")
 		case <-ticker.C:
 			if err := s.Sync(); err != nil {
@@ -186,6 +188,7 @@ func (v *logValidator) Validate(key string, val []byte) bool {
 }
 
 type IStore interface {
+	Cancel()
 	Close()
 	Address() string
 	Sync() error
@@ -222,13 +225,16 @@ func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (IStore, error) {
 	return cv.newCRDT(name, &logValidator{})
 }
 
-func (s *logStore) Close() {
+func (s *logStore) Cancel() {
 	s.cancel()
 	s.dt.Close()
 	s.dStore.Close()
 	s.dht.Close()
-	s.dsCancel()
 	s.h = nil
+}
+func (s *logStore) Close() {
+	s.Cancel()
+	s.dsCancel()
 }
 func (s *logStore) Address() string {
 	return s.name

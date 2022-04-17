@@ -105,18 +105,22 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			return nil, ctx.Err()
 		default:
 			s, err := cv.NewUpdatableSignatureStore(tp.Name)
-			if err != nil {
+			if err != nil{
+				if strings.HasPrefix(err.Error(), dirLock) {
+					fmt.Println(err, ", now reloading...")
+					time.Sleep(time.Second * 5)
+					continue
+				}
 				return nil, err
 			}
+
 			usst := s.(*updatableSignatureStore)
 			ctx, cancel := context.WithCancel(context.Background())
 			tc := &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}
 			
 			err = tc.loadCheck()
 			if err == nil{return tc, nil}
-			
-			errS := err.Error()
-			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
+			if strings.HasPrefix(err.Error(), timeout){
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 5)
 				continue
@@ -132,7 +136,7 @@ func (tc *timeController) loadCheck() error {
 	for {
 		select {
 		case <-ctx.Done():
-			tc.Close()
+			tc.Cancel()
 			return errors.New("load error: sync timeout (time)")
 		case <-ticker.C:
 			if err := tc.pStore.Sync(); err != nil {
@@ -156,8 +160,14 @@ func (tc *timeController) Address() string {
 }
 func (tc *timeController) Close() {
 	tc.cancel()
+	tc.pStore.Close()
+	tc.dStore = nil
 }
-
+func (tc *timeController) Cancel() {
+	tc.cancel()
+	tc.pStore.Cancel()
+	tc.dStore = nil
+}
 func (tc *timeController) getAllNewData() (<-chan string, error) {
 	rs, err := tc.dStore.baseQuery(query.Query{
 		KeysOnly: true,

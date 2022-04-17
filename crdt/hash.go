@@ -64,6 +64,9 @@ func (s *hashStore) Close() {
 	}
 	s.logStore.Close()
 }
+func (s *hashStore) Cancel(){
+	s.logStore.Cancel()
+}
 func (s *hashStore) Address() string {
 	if s.ac != nil {
 		return s.name + "/" + s.ac.Address()

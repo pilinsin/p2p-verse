@@ -65,6 +65,7 @@ func (s *accessController) init(accesses <-chan string) error {
 		b := make([]byte, 32)
 		rand.Read(b)
 		if err := s.put(access, b); err != nil {
+			s.Close()
 			return err
 		}
 	}
@@ -106,15 +107,21 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			return nil, ctx.Err()
 		default:
 			st, err := cv.NewSignatureStore(addr, opts...)
-			if err != nil{return nil, err}
+			if err != nil{
+				if strings.HasPrefix(err.Error(), dirLock) {
+					fmt.Println(err, ", now reloading...")
+					time.Sleep(time.Second * 5)
+					continue
+				}
+				return nil, err
+			}
+
 			sgst := st.(*signatureStore)
 			acst := &accessController{sgst, addr, salt}
 			
 			err = acst.loadCheck()
 			if err == nil{return acst, nil}
-
-			errS := err.Error()
-			if strings.HasPrefix(errS, timeout) || strings.HasPrefix(errS, dirLock) {
+			if strings.HasPrefix(err.Error(), timeout){
 				fmt.Println(err, ", now reloading...")
 				time.Sleep(time.Second * 5)
 				continue
@@ -130,7 +137,7 @@ func (s *accessController) loadCheck() error {
 	for {
 		select {
 		case <-ctx.Done():
-			s.Close()
+			s.Cancel()
 			return errors.New("load error: sync timeout (access)")
 		case <-ticker.C:
 			if err := s.store.Sync(); err != nil {
@@ -148,6 +155,9 @@ func (s *accessController) loadCheck() error {
 
 func (s *accessController) Close() {
 	s.store.Close()
+}
+func (s *accessController) Cancel(){
+	s.store.Cancel()
 }
 func (s *accessController) Address() string {
 	pid := PubKeyToStr(s.store.pub)

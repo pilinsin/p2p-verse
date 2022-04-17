@@ -88,6 +88,9 @@ func (s *signatureStore) Close() {
 	}
 	s.logStore.Close()
 }
+func (s *signatureStore) Cancel() {
+	s.logStore.Cancel()
+}
 func (s *signatureStore) Address() string {
 	name := s.name
 	if s.ac != nil {
