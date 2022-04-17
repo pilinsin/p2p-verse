@@ -130,7 +130,7 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 	}
 }
 func (tc *timeController) loadCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 	ticker := time.NewTicker(time.Second * 2)
 	for {

@@ -156,7 +156,7 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 	}
 }
 func (cv *crdtVerse) loadCheck(s IStore) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 	ticker := time.NewTicker(time.Second * 3)
 	for {
