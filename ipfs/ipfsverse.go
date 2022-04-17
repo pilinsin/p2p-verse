@@ -15,6 +15,7 @@ import (
 	badger "github.com/ipfs/go-ds-badger2"
 	uio "github.com/ipfs/go-unixfs/io"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	host "github.com/libp2p/go-libp2p-core/host"
 )
 
 
@@ -31,6 +32,7 @@ type ipfsStore struct {
 	ctx      context.Context
 	cancel   func()
 	dsCancel func()
+	h host.Hsot
 	dhtKW    string
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
@@ -73,13 +75,14 @@ func NewIpfsStore(hGen pv.HostGenerator, dirPath, keyword string, save, useMemor
 		return nil, err
 	}
 
-	return &ipfsStore{ctx, cancel, dsCancel, keyword, dht, store, ipfs}, nil
+	return &ipfsStore{ctx, cancel, dsCancel, h, keyword, dht, store, ipfs}, nil
 }
 func (s *ipfsStore) Close() {
 	s.cancel()
 	s.dStore.Close()
 	s.dht.Close()
 	s.dsCancel()
+	s.h = nil
 }
 
 func (s *ipfsStore) AddReader(r io.Reader) (string, error) {

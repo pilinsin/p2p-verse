@@ -16,6 +16,7 @@ import (
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	host "github.com/libp2p/go-libp2p-core/host"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -55,7 +56,7 @@ func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	st := &logStore{ctx, cancel, dsCancel, name, sp.dht, sp.dStore, sp.dt}
+	st := &logStore{ctx, cancel, dsCancel, name, h, sp.dht, sp.dStore, sp.dt}
 	return st, nil
 }
 
@@ -214,6 +215,7 @@ type logStore struct {
 	cancel   func()
 	dsCancel func()
 	name     string
+	h host.Host
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	dt       *crdt.Datastore
@@ -229,6 +231,7 @@ func (s *logStore) Close() {
 	s.dStore.Close()
 	s.dht.Close()
 	s.dsCancel()
+	s.h = nil
 }
 func (s *logStore) Address() string {
 	return s.name
