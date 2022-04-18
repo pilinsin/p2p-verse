@@ -131,7 +131,7 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 	}
 }
 func (s *accessController) loadCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	ticker := time.NewTicker(time.Second * 3)
 	for {
