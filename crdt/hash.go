@@ -1,6 +1,7 @@
 package crdtverse
 
 import (
+	"strings"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -13,21 +14,20 @@ import (
 )
 
 func MakeHashKey(bHashStr string, salt []byte) string {
-	hb := []byte(base64.URLEncoding.EncodeToString([]byte(bHashStr)))
-	hash := argon2.IDKey(hb, salt, 1, 64*1024, 4, 128)
+	hash := argon2.IDKey([]byte(bHashStr), salt, 1, 64*1024, 4, 64)
 	return base64.URLEncoding.EncodeToString(hash)
 }
 
 type hashValidator struct{}
 
 func (v *hashValidator) Validate(key string, val []byte) bool {
+	key = strings.TrimPrefix(key, "/")
 	data := &pb.HashData{}
 	if err := proto.Unmarshal(val, data); err != nil {
 		return false
 	}
-
 	hKey := MakeHashKey(data.GetBaseHash(), data.GetSalt())
-	return key[1:] == hKey
+	return key == hKey
 }
 
 func getHashOpts(opts ...*StoreOpts) ([]byte, *accessController) {
@@ -179,12 +179,12 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *hashStore) InitPut(key string) error {
-	key = MakeHashKey(key, s.salt)
+func (s *hashStore) InitPut(bHashStr string) error {
+	hKey := MakeHashKey(bHashStr, s.salt)
 	val := pv.RandBytes(8)
 
 	hd := &pb.HashData{
-		BaseHash: key,
+		BaseHash: bHashStr,
 		Salt:     s.salt,
 		Value:    val,
 	}
@@ -192,7 +192,7 @@ func (s *hashStore) InitPut(key string) error {
 	if err != nil {
 		return err
 	}
-	return s.logStore.Put(key, m)
+	return s.logStore.Put(hKey, m)
 }
 func (s *hashStore) LoadCheck() bool {
 	rs, err := s.logStore.Query(query.Query{

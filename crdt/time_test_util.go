@@ -35,7 +35,7 @@ func BaseTestTimeController(t *testing.T, hGen pv.HostGenerator) {
 	t.Log("put done")
 
 	//wait for db1.tc.AutoGrant()
-	time.Sleep(time.Minute * 2)
+	time.Sleep(time.Minute)
 
 	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")

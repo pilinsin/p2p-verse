@@ -18,12 +18,14 @@ func BaseTestLogStore(t *testing.T, hGen pv.HostGenerator) {
 
 	db0 := newStore(t, hGen, "ls/la", "lg", "log", baiStr)
 	defer db0.Close()
-	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("db0 generated")
 
 	db1 := loadStore(t, hGen, "ls/lb", db0.Address(), "log", baiStr)
 	defer db1.Close()
 	t.Log("db1 generated")
+
+	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
+	time.Sleep(time.Second*30)
 
 	checkError(t, db1.Sync())
 	v10, err := db1.Get("aaa")
