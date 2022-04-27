@@ -33,13 +33,17 @@ func SampleHost(seeds ...io.Reader) (host.Host, error) {
 	)
 }
 
+type IBootstrap interface{
+	Close()
+	AddrInfo() peer.AddrInfo
+}
 type bootstrap struct {
 	ctx context.Context
 	h   host.Host
 	dht *kad.IpfsDHT
 }
 
-func NewBootstrap(hGen HostGenerator) (*bootstrap, error) {
+func NewBootstrap(hGen HostGenerator) (IBootstrap, error) {
 	h, err := hGen()
 	if err != nil{return nil, err}
 	
