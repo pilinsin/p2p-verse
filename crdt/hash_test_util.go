@@ -3,6 +3,7 @@ package crdtverse
 import (
 	"testing"
 	"time"
+	"os"
 
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -17,11 +18,9 @@ func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
 
 	opts := &StoreOpts{}
 	db0 := newStore(t, hGen, "hs/ha", "hs", "hash", baiStr, opts)
-	defer db0.Close()
 	t.Log("db0 generated")
 
 	db1 := loadStore(t, hGen, "hs/hb", db0.Address(), "hash", baiStr, opts)
-	defer db1.Close()
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
@@ -43,5 +42,9 @@ func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
 	checkError(t, err)
 	t.Log(string(v12))
 
+	db0.Close()
+	db1.Close()
+	time.Sleep(time.Second*30)
+	os.RemoveAll("hs")
 	t.Log("finished")
 }

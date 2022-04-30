@@ -3,6 +3,7 @@ package crdtverse
 import (
 	"testing"
 	"time"
+	"os"
 
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
@@ -18,11 +19,9 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 
 	opts0 := &StoreOpts{}
 	db0 := newStore(t, hGen, "ss/sa", "sg", "signature", baiStr, opts0)
-	defer db0.Close()
 	t.Log("db0 generated")
 
 	db1 := loadStore(t, hGen, "ss/sb", db0.Address(), "signature", baiStr)
-	defer db1.Close()
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
@@ -61,5 +60,9 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 		t.Log(string(res.Value))
 	}
 
+	db0.Close()
+	db1.Close()
+	time.Sleep(time.Second*30)
+	os.RemoveAll("ss")
 	t.Log("finished")
 }

@@ -3,6 +3,7 @@ package crdtverse
 import (
 	"testing"
 	"time"
+	"os"
 
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	pv "github.com/pilinsin/p2p-verse"
@@ -24,11 +25,9 @@ func BaseTestTimeController(t *testing.T, hGen pv.HostGenerator) {
 	tc := newTimeController(t, hGen, "tc/t", "tc", baiStr, begin, end)
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac, Tc: tc}
 	db0 := newStore(t, hGen, "tc/ta", "us", "updatableSignature", baiStr, opts0)
-	defer db0.Close()
 	t.Log("db0 generated")
 
 	db1 := loadStore(t, hGen, "tc/tb", db0.Address(), "updatableSignature", baiStr)
-	defer db1.Close()
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
@@ -42,5 +41,9 @@ func BaseTestTimeController(t *testing.T, hGen pv.HostGenerator) {
 	checkError(t, err)
 	t.Log("db1.Get:", string(v10))
 
+	db0.Close()
+	db1.Close()
+	time.Sleep(time.Second*30)
+	os.RemoveAll("tc")
 	t.Log("finished")
 }

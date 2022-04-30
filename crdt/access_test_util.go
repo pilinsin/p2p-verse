@@ -3,6 +3,7 @@ package crdtverse
 import (
 	"testing"
 	"time"
+	"os"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -19,11 +20,9 @@ func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
 	ac := newAccessController(t, hGen, "ac/c", "ac", baiStr, pid)
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac}
 	db0 := newStore(t, hGen, "ac/aa", "us", "updatableSignature", baiStr, opts0)
-	defer db0.Close()
 	t.Log("db0 generated")
 
 	db1 := loadStore(t, hGen, "ac/ab", db0.Address(), "updatableSignature", baiStr)
-	defer db1.Close()
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
@@ -35,5 +34,9 @@ func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
 	checkError(t, err)
 	t.Log("db1.Get:", string(v10))
 
+	db0.Close()
+	db1.Close()
+	time.Sleep(time.Second*30)
+	os.RemoveAll("ac")
 	t.Log("finished")
 }
