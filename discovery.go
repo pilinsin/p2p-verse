@@ -2,6 +2,7 @@ package p2pverse
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -20,7 +21,7 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 		return err
 	}
 
-	connectBootstraps(ctx, h, bootstraps)
+	if err := connectBootstraps(ctx, h, bootstraps); err != nil{return err}
 
 	time.Sleep(5 * time.Second)
 
@@ -52,21 +53,28 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 	time.Sleep(5 * time.Second)
 	return nil
 }
-func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrInfo) {
+func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrInfo) error {
+	var cbErr error
 	var wg sync.WaitGroup
-	for _, other := range others {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		isSuccess := false
+		for _, other := range others {
 			if self.Network().Connectedness(other.ID) == network.Connected{
 				return
 			}
-			if err := self.Connect(ctx, other); err != nil {
+			if err := self.Connect(ctx, other); err == nil {
+				isSuccess = true
+			}else{
 				fmt.Println("connection err:", err)
 			}
-		}()
-	}
+		}
+		if !isSuccess{cbErr = errors.New("no bootstraps are connected")}
+	}()
 	wg.Wait()
+
+	return cbErr
 }
 
 type DiscoveryDHT struct {
@@ -91,7 +99,7 @@ func (d *DiscoveryDHT) DHT() *kad.IpfsDHT {
 	return d.d
 }
 func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) error {
-	connectBootstraps(d.ctx, d.h, bootstraps)
+	if err := connectBootstraps(d.ctx, d.h, bootstraps); err != nil{return err}
 
 	time.Sleep(5 * time.Second)
 
