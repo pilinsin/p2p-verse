@@ -36,6 +36,7 @@ func SampleHost(seeds ...io.Reader) (host.Host, error) {
 type IBootstrap interface{
 	Close()
 	AddrInfo() peer.AddrInfo
+	ConnectedPeers() []peer.ID
 }
 type bootstrap struct {
 	ctx context.Context
@@ -43,7 +44,7 @@ type bootstrap struct {
 	dht *kad.IpfsDHT
 }
 
-func NewBootstrap(hGen HostGenerator) (IBootstrap, error) {
+func NewBootstrap(hGen HostGenerator, others ... peer.AddrInfo) (IBootstrap, error) {
 	h, err := hGen()
 	if err != nil{return nil, err}
 	
@@ -51,6 +52,13 @@ func NewBootstrap(hGen HostGenerator) (IBootstrap, error) {
 	d, err := kad.New(ctx, h)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(others) > 0{
+		if err := connectBootstraps(ctx, h, others); err != nil{
+			d.Close()
+			return nil, err
+		}
 	}
 
 	return &bootstrap{ctx, h, d}, nil
@@ -61,4 +69,7 @@ func (b *bootstrap) Close() {
 }
 func (b *bootstrap) AddrInfo() peer.AddrInfo {
 	return HostToAddrInfo(b.h)
+}
+func (b *bootstrap) ConnectedPeers() []peer.ID{
+	return b.h.Network().Peers()
 }

@@ -45,6 +45,9 @@ func (a *api) Close(){
 	a.ps = nil
 	a.h = nil
 }
+func (a *api) AddrInfo() peer.AddrInfo{
+	return pv.HostToAddrInfo(a.h)
+}
 func (a *api) Topics() []string {
 	return a.ps.GetTopics()
 }

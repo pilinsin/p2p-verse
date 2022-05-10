@@ -21,6 +21,7 @@ import (
 
 type Ipfs interface {
 	Close()
+	AddrInfo() peer.AddrInfo
 	AddReader(io.Reader) (string, error)
 	Add([]byte) (string, error)
 	GetReader(string) (uio.ReadSeekCloser, error)
@@ -83,6 +84,10 @@ func (s *ipfsStore) Close() {
 	s.dht.Close()
 	s.dsCancel()
 	s.h = nil
+}
+
+func (s *ipfsStore) AddrInfo() peer.AddrInfo{
+	return pv.HostToAddrInfo(s.h)
 }
 
 func (s *ipfsStore) AddReader(r io.Reader) (string, error) {

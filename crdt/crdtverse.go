@@ -191,6 +191,7 @@ type IStore interface {
 	Cancel()
 	Close()
 	Address() string
+	AddrInfo() peer.AddrInfo
 	Sync() error
 	Repair() error
 	Put(string, []byte) error
@@ -238,6 +239,9 @@ func (s *logStore) Close() {
 }
 func (s *logStore) Address() string {
 	return s.name
+}
+func (s *logStore) AddrInfo() peer.AddrInfo{
+	return pv.HostToAddrInfo(s.h)
 }
 func (s *logStore) Sync() error {
 	return s.dt.Sync(s.ctx, ds.NewKey("/"))
