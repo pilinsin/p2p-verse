@@ -64,6 +64,11 @@ func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController)
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac
 }
 
+type ISignatureStore interface{
+	IStore
+	ResetKeyPair(IPrivKey, IPubKey)
+}
+
 type signatureStore struct {
 	*logStore
 	priv IPrivKey
@@ -71,7 +76,7 @@ type signatureStore struct {
 	ac   *accessController
 }
 
-func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (IStore, error) {
+func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (ISignatureStore, error) {
 	priv, pub, ac := getSignatureOpts(opts...)
 
 	v := signatureValidator{&logValidator{}}
@@ -97,6 +102,10 @@ func (s *signatureStore) Address() string {
 		name += "/" + s.ac.Address()
 	}
 	return name
+}
+func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey){
+	s.priv = priv
+	s.pub = pub
 }
 func (s *signatureStore) verify(key string) error {
 	if s.ac != nil {

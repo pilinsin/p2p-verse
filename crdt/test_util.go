@@ -17,6 +17,11 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 		t.Fatal(args0...)
 	}
 }
+func assertError(t *testing.T, cond bool, args ...interface{}){
+	if !cond{
+		t.Fatal(args...)
+	}
+}
 
 func newStore(t *testing.T, hGen pv.HostGenerator, baseDir, name, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)

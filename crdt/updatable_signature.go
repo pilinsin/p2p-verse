@@ -22,6 +22,7 @@ func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessCo
 
 type IUpdatableSignatureStore interface {
 	IUpdatableStore
+	ISignatureStore
 	QueryWithoutTc(...query.Query) (query.Results, error)
 }
 
@@ -33,7 +34,7 @@ type updatableSignatureStore struct {
 	tc   *timeController
 }
 
-func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IUpdatableStore, error) {
+func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IUpdatableSignatureStore, error) {
 	priv, pub, ac, tc := getUpdatableSignatureOpts(opts...)
 
 	v := signatureValidator{&updatableValidator{}}
@@ -70,6 +71,10 @@ func (s *updatableSignatureStore) Address() string {
 		name += "/" + s.tc.Address()
 	}
 	return name
+}
+func (s *updatableSignatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey){
+	s.priv = priv
+	s.pub = pub
 }
 func (s *updatableSignatureStore) verify(key string) error {
 	if s.ac != nil {
