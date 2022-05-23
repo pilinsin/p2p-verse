@@ -104,6 +104,9 @@ func (s *signatureStore) Address() string {
 	return name
 }
 func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey){
+	if priv == nil || pub == nil{
+		priv, pub, _ = generateKeyPair()
+	}
 	s.priv = priv
 	s.pub = pub
 }

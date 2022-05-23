@@ -73,6 +73,9 @@ func (s *updatableSignatureStore) Address() string {
 	return name
 }
 func (s *updatableSignatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey){
+	if priv == nil || pub == nil{
+		priv, pub, _ = generateKeyPair()
+	}
 	s.priv = priv
 	s.pub = pub
 }
