@@ -11,6 +11,13 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
+func sliceToMap(slc []peer.AddrInfo) map[peer.ID]peer.AddrInfo{
+	m := make(map[peer.ID]peer.AddrInfo)
+	for _, elem := range slc{
+		m[elem.ID] = elem
+	}
+	return m
+}
 
 type HostGenerator func(seeds ...io.Reader) (host.Host, error)
 
@@ -36,12 +43,13 @@ func SampleHost(seeds ...io.Reader) (host.Host, error) {
 type IBootstrap interface{
 	Close()
 	AddrInfo() peer.AddrInfo
-	ConnectedPeers() []peer.ID
+	ConnectedPeers() []peer.AddrInfo
 }
 type bootstrap struct {
 	ctx context.Context
 	h   host.Host
 	dht *kad.IpfsDHT
+	peers []peer.AddrInfo
 }
 
 func NewBootstrap(hGen HostGenerator, others ... peer.AddrInfo) (IBootstrap, error) {
@@ -54,14 +62,21 @@ func NewBootstrap(hGen HostGenerator, others ... peer.AddrInfo) (IBootstrap, err
 		return nil, err
 	}
 
+	peers := make([]peer.AddrInfo, 0)
 	if len(others) > 0{
 		if err := connectBootstraps(ctx, h, others); err != nil{
 			d.Close()
 			return nil, err
 		}
+		othersMap := sliceToMap(others)
+		for _, pid := range h.Network().Peers(){
+			if ai, ok := othersMap[pid]; ok{
+				peers = append(peers, ai)
+			}
+		}
 	}
 
-	return &bootstrap{ctx, h, d}, nil
+	return &bootstrap{ctx, h, d, peers}, nil
 }
 func (b *bootstrap) Close() {
 	b.dht.Close()
@@ -70,6 +85,6 @@ func (b *bootstrap) Close() {
 func (b *bootstrap) AddrInfo() peer.AddrInfo {
 	return HostToAddrInfo(b.h)
 }
-func (b *bootstrap) ConnectedPeers() []peer.ID{
-	return b.h.Network().Peers()
+func (b *bootstrap) ConnectedPeers() []peer.AddrInfo{
+	return b.peers
 }
