@@ -29,12 +29,11 @@ type crdtVerse struct {
 	hGenerator pv.HostGenerator
 	dirPath    string
 	save       bool
-	useMemory  bool
 	bootstraps []peer.AddrInfo
 }
 
-func NewVerse(hGen pv.HostGenerator, dir string, save, useMemory bool, bootstraps ...peer.AddrInfo) *crdtVerse {
-	return &crdtVerse{hGen, dir, save, useMemory, bootstraps}
+func NewVerse(hGen pv.HostGenerator, dir string, save bool, bootstraps ...peer.AddrInfo) *crdtVerse {
+	return &crdtVerse{hGen, dir, save, bootstraps}
 }
 func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
 	h, err := cv.hGenerator()
@@ -138,7 +137,7 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			if err != nil{
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
-					time.Sleep(time.Second * 5)
+					time.Sleep(time.Second)
 					continue
 				}
 				return nil, err
@@ -148,7 +147,7 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			if err == nil{return db, nil}
 			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
-				time.Sleep(time.Second * 5)
+				time.Sleep(time.Second)
 				continue
 			}
 			return nil, err
@@ -158,7 +157,7 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 func (cv *crdtVerse) loadCheck(s IStore) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	ticker := time.NewTicker(time.Second * 3)
+	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ctx.Done():

@@ -25,14 +25,14 @@ func assertError(t *testing.T, cond bool, args ...interface{}){
 
 func newStore(t *testing.T, hGen pv.HostGenerator, baseDir, name, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, false, bai)
+	v := NewVerse(hGen, baseDir, false, bai)
 	db, err := v.NewStore(name, mode, opts...)
 	checkError(t, err)
 	return db
 }
 func loadStore(t *testing.T, hGen pv.HostGenerator, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
 	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, false, bai)
+	v := NewVerse(hGen, baseDir, false, bai)
 	db, err := v.LoadStore(context.Background(), addr, mode, opts...)
 	checkError(t, err)
 	return db
@@ -48,7 +48,7 @@ func newAccessController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAd
 	}()
 
 	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, false, bai)
+	v := NewVerse(hGen, baseDir, false, bai)
 	ac, err := v.NewAccessController(name, accesses)
 	checkError(t, err)
 	return ac
@@ -56,7 +56,7 @@ func newAccessController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAd
 
 func newTimeController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAddrInfo string, begin, end time.Time) *timeController {
 	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, false, bai)
+	v := NewVerse(hGen, baseDir, false, bai)
 	tc, err := v.NewTimeController(name, begin, end, time.Minute*2, time.Second*10, 1)
 	checkError(t, err)
 	return tc

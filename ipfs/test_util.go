@@ -23,7 +23,7 @@ func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator){
 	bAddrInfo := bstrp.AddrInfo()
 	t.Log("bootstrap AddrInfo: ", bAddrInfo)
 
-	ipfs, err := NewIpfsStore(hGen, "ipfs", "dht-kw", true, false, bAddrInfo)
+	ipfs, err := NewIpfsStore(hGen, "ipfs", true, bAddrInfo)
 	checkError(t, err)
 
 	c, err := ipfs.Add([]byte("meow meow ^.^"))
@@ -31,11 +31,11 @@ func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator){
 	t.Log("add,", c)
 	ipfs.Close()
 
-	ipfs, err = NewIpfsStore(hGen, "ipfs", "dht-kw", false, false, bAddrInfo)
+	ipfs, err = NewIpfsStore(hGen, "ipfs", false, bAddrInfo)
 	checkError(t, err)
 	defer ipfs.Close()
 
-	ipfs2, err := NewIpfsStore(hGen, "ipfs2", "dht-kw", false, false, bAddrInfo)
+	ipfs2, err := NewIpfsStore(hGen, "ipfs2", false, bAddrInfo)
 	checkError(t, err)
 	defer ipfs2.Close()
 

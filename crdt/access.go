@@ -110,7 +110,7 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			if err != nil{
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
-					time.Sleep(time.Second * 5)
+					time.Sleep(time.Second)
 					continue
 				}
 				return nil, err
@@ -123,7 +123,7 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			if err == nil{return acst, nil}
 			if strings.HasPrefix(err.Error(), timeout){
 				fmt.Println(err, ", now reloading...")
-				time.Sleep(time.Second * 5)
+				time.Sleep(time.Second)
 				continue
 			}
 			return nil, err
@@ -133,7 +133,7 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 func (s *accessController) loadCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	ticker := time.NewTicker(time.Second * 3)
+	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ctx.Done():

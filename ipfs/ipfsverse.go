@@ -34,13 +34,12 @@ type ipfsStore struct {
 	cancel   func()
 	dsCancel func()
 	h host.Host
-	dhtKW    string
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	ipfs     *ipfslt.Peer
 }
 
-func NewIpfsStore(hGen pv.HostGenerator, dirPath, keyword string, save, useMemory bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
+func NewIpfsStore(hGen pv.HostGenerator, dirPath string, save bool, bootstraps ...peer.AddrInfo) (Ipfs, error) {
 	h, err := hGen()
 	if err != nil {
 		return nil, err
@@ -55,7 +54,7 @@ func NewIpfsStore(hGen pv.HostGenerator, dirPath, keyword string, save, useMemor
 	}
 
 	stOpts := badger.DefaultOptions
-	stOpts.InMemory = useMemory
+	stOpts.InMemory = false
 	store, err := badger.NewDatastore(dirPath, &stOpts)
 	if err != nil {
 		return nil, err
@@ -72,11 +71,12 @@ func NewIpfsStore(hGen pv.HostGenerator, dirPath, keyword string, save, useMemor
 		return nil, err
 	}
 
+	keyword := "ipfs-verse: UmvCoi9pSwvj_ojanIr/-jkfjwoil3frLf0@2i14hoi"
 	if err := dht.Bootstrap(keyword, bootstraps); err != nil {
 		return nil, err
 	}
 
-	return &ipfsStore{ctx, cancel, dsCancel, h, keyword, dht, store, ipfs}, nil
+	return &ipfsStore{ctx, cancel, dsCancel, h, dht, store, ipfs}, nil
 }
 func (s *ipfsStore) Close() {
 	s.cancel()
@@ -93,7 +93,7 @@ func (s *ipfsStore) AddrInfo() peer.AddrInfo{
 func (s *ipfsStore) AddReader(r io.Reader) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
-	ap := ipfslt.AddParams{HashFun: "keccak-256"}
+	ap := ipfslt.AddParams{HashFun: "sha3-256"}
 	nd, err := s.ipfs.AddFile(ctx, r, &ap)
 	if err != nil {
 		return "", err

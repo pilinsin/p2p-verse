@@ -36,7 +36,7 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 
 	dirAddr := filepath.Join(cv.dirPath, name)
 	stOpts := badger.DefaultOptions
-	stOpts.InMemory = cv.useMemory
+	stOpts.InMemory = false
 	store, err := badger.NewDatastore(dirAddr, &stOpts)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func validate(key string, val []byte, v iValidator, d ds.Datastore, ns ds.Key) b
 }
 
 func msgToDeltas(ctx context.Context, msg *p2ppubsub.Message, dg crdt.SessionDAGService) ([]*crdtpb.Delta, error) {
-	heads, err := msgToCDRTHeads(msg)
+	heads, err := msgToCRDTHeads(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func msgToDeltas(ctx context.Context, msg *p2ppubsub.Message, dg crdt.SessionDAG
 	}
 	return deltas, nil
 }
-func msgToCDRTHeads(msg *p2ppubsub.Message) ([]cid.Cid, error) {
+func msgToCRDTHeads(msg *p2ppubsub.Message) ([]cid.Cid, error) {
 	bcastData := crdtpb.CRDTBroadcast{}
 	if err := proto.Unmarshal(msg.GetData(), &bcastData); err != nil {
 		return nil, err
