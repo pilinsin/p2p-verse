@@ -137,7 +137,7 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			if err != nil{
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
-					time.Sleep(time.Second)
+					time.Sleep(time.Second*2)
 					continue
 				}
 				return nil, err
@@ -147,7 +147,7 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			if err == nil{return db, nil}
 			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
-				time.Sleep(time.Second)
+				time.Sleep(time.Second*2)
 				continue
 			}
 			return nil, err
