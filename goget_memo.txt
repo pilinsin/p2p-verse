@@ -1,0 +1,6 @@
+go-ds-crdt
+ipfs-lite
+badger2
+
+
+NEVER go get go-libp2p*
