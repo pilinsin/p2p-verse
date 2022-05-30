@@ -108,7 +108,6 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			if err != nil{
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
-					//time.Sleep(time.Second)
 					continue
 				}
 				return nil, err
@@ -122,7 +121,6 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			if err == nil{return tc, nil}
 			if strings.HasPrefix(err.Error(), timeout){
 				fmt.Println(err, ", now reloading...")
-				//time.Sleep(time.Second)
 				continue
 			}
 			return nil, err
@@ -130,7 +128,7 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 	}
 }
 func (tc *timeController) loadCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	ticker := time.NewTicker(time.Second)
 	for {
