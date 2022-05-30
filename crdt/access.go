@@ -110,7 +110,7 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			if err != nil{
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
-					time.Sleep(time.Second*2)
+					//time.Sleep(time.Second)
 					continue
 				}
 				return nil, err
@@ -123,7 +123,7 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			if err == nil{return acst, nil}
 			if strings.HasPrefix(err.Error(), timeout){
 				fmt.Println(err, ", now reloading...")
-				time.Sleep(time.Second*2)
+				//time.Sleep(time.Second)
 				continue
 			}
 			return nil, err

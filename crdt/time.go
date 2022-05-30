@@ -108,7 +108,7 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			if err != nil{
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
-					time.Sleep(time.Second*2)
+					//time.Sleep(time.Second)
 					continue
 				}
 				return nil, err
@@ -122,7 +122,7 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			if err == nil{return tc, nil}
 			if strings.HasPrefix(err.Error(), timeout){
 				fmt.Println(err, ", now reloading...")
-				time.Sleep(time.Second*2)
+				//time.Sleep(time.Second)
 				continue
 			}
 			return nil, err

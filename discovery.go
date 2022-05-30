@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	//"time"
 
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -22,7 +21,6 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 	}
 
 	if err := connectBootstraps(ctx, h, bootstraps); err != nil{return err}
-	//time.Sleep(time.Second)
 	if err := d.Bootstrap(ctx); err != nil {
 		return err
 	}
@@ -47,7 +45,6 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 			fmt.Println("connection err:", err)
 		}
 	}
-	//time.Sleep(time.Second)
 
 	return nil
 }
@@ -98,7 +95,6 @@ func (d *DiscoveryDHT) DHT() *kad.IpfsDHT {
 }
 func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) error {
 	if err := connectBootstraps(d.ctx, d.h, bootstraps); err != nil{return err}
-	//time.Sleep(time.Second)
 	if err := d.d.Bootstrap(d.ctx); err != nil {
 		return err
 	}
@@ -123,7 +119,6 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 			fmt.Println("connection err:", err)
 		}
 	}
-	//time.Sleep(time.Second)
 
 	return nil
 }
