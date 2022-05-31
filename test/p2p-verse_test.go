@@ -1,14 +1,14 @@
 package test
 
-import(
+import (
 	"testing"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	pv "github.com/pilinsin/p2p-verse"
-	pubsub "github.com/pilinsin/p2p-verse/pubsub"
-	ipfs "github.com/pilinsin/p2p-verse/ipfs"
 	crdt "github.com/pilinsin/p2p-verse/crdt"
+	ipfs "github.com/pilinsin/p2p-verse/ipfs"
+	pubsub "github.com/pilinsin/p2p-verse/pubsub"
 )
 
 func checkError(t *testing.T, err error, args ...interface{}) {
@@ -20,34 +20,33 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 		t.Fatal(args0...)
 	}
 }
-func assertError(t *testing.T, cond bool, mess ...interface{}){
-	if !cond{
+func assertError(t *testing.T, cond bool, mess ...interface{}) {
+	if !cond {
 		t.Fatal(mess...)
 	}
 }
 
-func bootstrapsToBAddrs(bs []pv.IBootstrap) []peer.AddrInfo{
+func bootstrapsToBAddrs(bs []pv.IBootstrap) []peer.AddrInfo {
 	bAddrs := make([]peer.AddrInfo, len(bs))
-	for idx, b := range bs{
+	for idx, b := range bs {
 		bAddrs[idx] = b.AddrInfo()
 	}
 	return bAddrs
 }
 
-func testBootstrap(t *testing.T){
+func testBootstrap(t *testing.T) {
 	bs := make([]pv.IBootstrap, 0)
-	for i := 0; i < 3; i++{
+	for i := 0; i < 3; i++ {
 		b, err := pv.NewBootstrap(pv.SampleHost, bootstrapsToBAddrs(bs)...)
 		checkError(t, err)
 		bs = append(bs, b)
 		defer b.Close()
 		t.Log("bootstrap", i, "ID:", b.AddrInfo().ID, "Peers:", b.ConnectedPeers())
-		if i > 0{
+		if i > 0 {
 			assertError(t, len(b.ConnectedPeers()) > 0, "failed to connect to other bootstraps")
 		}
 	}
 	bAddrs := bootstrapsToBAddrs(bs)
-
 
 	is, err := ipfs.NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", true, false, bAddrs...)
 	checkError(t, err)
@@ -72,7 +71,7 @@ func testBootstrap(t *testing.T){
 	t.Log("finished")
 }
 
-func TestP2pVerse(t *testing.T){
+func TestP2pVerse(t *testing.T) {
 	t.Log("===== bootstrap =====")
 	testBootstrap(t)
 	t.Log("===== pubsub =====")

@@ -1,8 +1,8 @@
 package ipfsverse
 
 import (
-	"testing"
 	pv "github.com/pilinsin/p2p-verse"
+	"testing"
 )
 
 func checkError(t *testing.T, err error, args ...interface{}) {
@@ -16,7 +16,7 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 }
 
 //go test -test.v=true .
-func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator){
+func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator) {
 	bstrp, err := pv.NewBootstrap(hGen)
 	checkError(t, err)
 	defer bstrp.Close()

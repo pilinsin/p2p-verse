@@ -17,10 +17,9 @@ import (
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery ->
 // -> JoinTopic -> Subscribe -> Publish/Get
 
-
 type api struct {
 	ctx context.Context
-	h host.Host
+	h   host.Host
 	ps  *p2ppubsub.PubSub
 }
 
@@ -41,11 +40,11 @@ func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (*api, error)
 		return &api{ctx, self, gossip}, nil
 	}
 }
-func (a *api) Close(){
+func (a *api) Close() {
 	a.ps = nil
 	a.h = nil
 }
-func (a *api) AddrInfo() peer.AddrInfo{
+func (a *api) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(a.h)
 }
 func (a *api) Topics() []string {

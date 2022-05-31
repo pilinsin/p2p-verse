@@ -1,11 +1,11 @@
 package ipfsverse
 
 import (
-	"time"
 	"bytes"
 	"context"
 	"io"
 	"os"
+	"time"
 
 	pv "github.com/pilinsin/p2p-verse"
 
@@ -14,10 +14,9 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger2"
 	uio "github.com/ipfs/go-unixfs/io"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
-
 
 type Ipfs interface {
 	Close()
@@ -33,7 +32,7 @@ type ipfsStore struct {
 	ctx      context.Context
 	cancel   func()
 	dsCancel func()
-	h host.Host
+	h        host.Host
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	ipfs     *ipfslt.Peer
@@ -86,7 +85,7 @@ func (s *ipfsStore) Close() {
 	s.h = nil
 }
 
-func (s *ipfsStore) AddrInfo() peer.AddrInfo{
+func (s *ipfsStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)
 }
 

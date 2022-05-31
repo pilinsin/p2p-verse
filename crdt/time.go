@@ -1,10 +1,10 @@
 package crdtverse
 
 import (
-	"fmt"
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -98,14 +98,14 @@ func (cv *crdtVerse) loadTimeController(ctx context.Context, tAddr string) (*tim
 
 	return cv.baseLoadTime(ctx, tp)
 }
-func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*timeController, error){
+func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*timeController, error) {
 	for {
-		select{
+		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 			s, err := cv.NewUpdatableSignatureStore(tp.Name)
-			if err != nil{
+			if err != nil {
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
 					continue
@@ -116,10 +116,12 @@ func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*time
 			usst := s.(*updatableSignatureStore)
 			ctx, cancel := context.WithCancel(context.Background())
 			tc := &timeController{ctx, cancel, nil, usst, tp.Name, tp.Begin, tp.End, tp.Eps, tp.Cool, tp.N}
-			
+
 			err = tc.loadCheck()
-			if err == nil{return tc, nil}
-			if strings.HasPrefix(err.Error(), timeout){
+			if err == nil {
+				return tc, nil
+			}
+			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
 				continue
 			}

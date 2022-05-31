@@ -1,9 +1,9 @@
 package crdtverse
 
 import (
+	"os"
 	"testing"
 	"time"
-	"os"
 
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	pv "github.com/pilinsin/p2p-verse"
@@ -43,7 +43,7 @@ func BaseTestTimeController(t *testing.T, hGen pv.HostGenerator) {
 
 	db0.Close()
 	db1.Close()
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second * 30)
 	os.RemoveAll("tc")
 	t.Log("finished")
 }

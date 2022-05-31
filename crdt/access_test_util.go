@@ -1,10 +1,10 @@
 package crdtverse
 
 import (
+	pv "github.com/pilinsin/p2p-verse"
+	"os"
 	"testing"
 	"time"
-	"os"
-	pv "github.com/pilinsin/p2p-verse"
 )
 
 func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
@@ -27,7 +27,7 @@ func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second * 30)
 
 	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
@@ -36,7 +36,7 @@ func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
 
 	db0.Close()
 	db1.Close()
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second * 30)
 	os.RemoveAll("ac")
 	t.Log("finished")
 }

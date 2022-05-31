@@ -1,18 +1,18 @@
 package crdtverse
 
 import (
-	"fmt"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/argon2"
 	query "github.com/ipfs/go-datastore/query"
-	proto "google.golang.org/protobuf/proto"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	"golang.org/x/crypto/argon2"
+	proto "google.golang.org/protobuf/proto"
 
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -100,14 +100,14 @@ func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*
 
 	return cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
 }
-func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byte, opts ...*StoreOpts) (*accessController, error){
+func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byte, opts ...*StoreOpts) (*accessController, error) {
 	for {
-		select{
+		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 			st, err := cv.NewSignatureStore(addr, opts...)
-			if err != nil{
+			if err != nil {
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
 					continue
@@ -117,10 +117,12 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 
 			sgst := st.(*signatureStore)
 			acst := &accessController{sgst, addr, salt}
-			
+
 			err = acst.loadCheck()
-			if err == nil{return acst, nil}
-			if strings.HasPrefix(err.Error(), timeout){
+			if err == nil {
+				return acst, nil
+			}
+			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
 				//time.Sleep(time.Second)
 				continue
@@ -151,19 +153,18 @@ func (s *accessController) loadCheck() error {
 	}
 }
 
-
 func (s *accessController) Close() {
 	s.store.Close()
 }
-func (s *accessController) Cancel(){
+func (s *accessController) Cancel() {
 	s.store.Cancel()
 }
 func (s *accessController) Address() string {
 	pid := PubKeyToStr(s.store.pub)
 	m, err := proto.Marshal(&pb.AccessParams{
-		Pid:     pid,
-		Name:    s.name,
-		Salt:    s.salt,
+		Pid:  pid,
+		Name: s.name,
+		Salt: s.salt,
 	})
 	if err != nil {
 		return ""

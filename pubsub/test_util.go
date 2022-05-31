@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"fmt"
-	"time"
 	pv "github.com/pilinsin/p2p-verse"
+	"time"
 )
 
 func checkError(t *testing.T, err error, args ...interface{}) {
@@ -71,4 +71,3 @@ func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
 	<-time.Tick(10 * time.Second)
 	t.Log("finished")
 }
-

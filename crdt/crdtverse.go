@@ -15,8 +15,8 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -91,23 +91,27 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 	}
 }
 
-func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*StoreOpts) (IStore, error){
+func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	addrs := strings.Split(strings.TrimPrefix(addr, "/"), "/")
-	if len(addrs) == 0{return nil, errors.New("invalid addr")}
+	if len(addrs) == 0 {
+		return nil, errors.New("invalid addr")
+	}
 
 	opt := &StoreOpts{}
-	if len(opts) > 0{
+	if len(opts) > 0 {
 		opt = opts[0]
 	}
 
-	if len(addrs) > 1{
+	if len(addrs) > 1 {
 		ac, err := cv.loadAccessController(ctx, addrs[1])
-		if err != nil{return nil, err}
+		if err != nil {
+			return nil, err
+		}
 		opt.Ac = ac
 	}
-	if len(addrs) > 2{
+	if len(addrs) > 2 {
 		tc, err := cv.loadTimeController(ctx, addrs[2])
-		if err != nil && opt.Ac != nil{
+		if err != nil && opt.Ac != nil {
 			opt.Ac.Close()
 			return nil, err
 		}
@@ -115,11 +119,11 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 	}
 
 	s, err := cv.baseLoadStore(ctx, addrs[0], mode, opt)
-	if err != nil{
-		if opt.Ac != nil{
+	if err != nil {
+		if opt.Ac != nil {
 			opt.Ac.Close()
 		}
-		if opt.Tc != nil{
+		if opt.Tc != nil {
 			opt.Tc.Close()
 		}
 		return nil, err
@@ -129,12 +133,12 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 
 func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	for {
-		select{
+		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 			db, err := cv.selectNewStore(addr, mode, opts...)
-			if err != nil{
+			if err != nil {
 				if strings.HasPrefix(err.Error(), dirLock) {
 					fmt.Println(err, ", now reloading...")
 					continue
@@ -143,7 +147,9 @@ func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts 
 			}
 
 			err = cv.loadCheck(db)
-			if err == nil{return db, nil}
+			if err == nil {
+				return db, nil
+			}
 			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
 				continue
@@ -173,7 +179,6 @@ func (cv *crdtVerse) loadCheck(s IStore) error {
 		}
 	}
 }
-
 
 type iValidator interface {
 	Validate(string, []byte) bool
@@ -213,7 +218,7 @@ type logStore struct {
 	cancel   func()
 	dsCancel func()
 	name     string
-	h host.Host
+	h        host.Host
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	dt       *crdt.Datastore
@@ -237,7 +242,7 @@ func (s *logStore) Close() {
 func (s *logStore) Address() string {
 	return s.name
 }
-func (s *logStore) AddrInfo() peer.AddrInfo{
+func (s *logStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)
 }
 func (s *logStore) Sync() error {

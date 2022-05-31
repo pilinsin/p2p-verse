@@ -1,9 +1,9 @@
 package crdtverse
 
 import (
+	"context"
 	"testing"
 	"time"
-	"context"
 
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -17,8 +17,8 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 		t.Fatal(args0...)
 	}
 }
-func assertError(t *testing.T, cond bool, args ...interface{}){
-	if !cond{
+func assertError(t *testing.T, cond bool, args ...interface{}) {
+	if !cond {
 		t.Fatal(args...)
 	}
 }

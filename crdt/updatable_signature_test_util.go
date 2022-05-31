@@ -1,9 +1,9 @@
 package crdtverse
 
 import (
+	"os"
 	"testing"
 	"time"
-	"os"
 
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
@@ -26,7 +26,7 @@ func BaseTestUpdatableSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second * 30)
 
 	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
@@ -62,7 +62,7 @@ func BaseTestUpdatableSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 
 	db0.Close()
 	db1.Close()
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second * 30)
 	os.RemoveAll("us")
 	t.Log("finished")
 }

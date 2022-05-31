@@ -64,7 +64,7 @@ func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController)
 	return opts[0].Priv, opts[0].Pub, opts[0].Ac
 }
 
-type ISignatureStore interface{
+type ISignatureStore interface {
 	IStore
 	ResetKeyPair(IPrivKey, IPubKey)
 }
@@ -103,8 +103,8 @@ func (s *signatureStore) Address() string {
 	}
 	return name
 }
-func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey){
-	if priv == nil || pub == nil{
+func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
+	if priv == nil || pub == nil {
 		priv, pub, _ = generateKeyPair()
 	}
 	s.priv = priv

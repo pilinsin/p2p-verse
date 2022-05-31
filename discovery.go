@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	network "github.com/libp2p/go-libp2p-core/network"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2pdiscovery "github.com/libp2p/go-libp2p-discovery"
 	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
@@ -20,7 +20,9 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 		return err
 	}
 
-	if err := connectBootstraps(ctx, h, bootstraps); err != nil{return err}
+	if err := connectBootstraps(ctx, h, bootstraps); err != nil {
+		return err
+	}
 	if err := d.Bootstrap(ctx); err != nil {
 		return err
 	}
@@ -38,7 +40,7 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 		if len(peer.Addrs) <= 0 {
 			continue
 		}
-		if h.Network().Connectedness(peer.ID) == network.Connected{
+		if h.Network().Connectedness(peer.ID) == network.Connected {
 			continue
 		}
 		if err := h.Connect(ctx, peer); err != nil {
@@ -56,16 +58,18 @@ func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrIn
 		defer wg.Done()
 		isSuccess := false
 		for _, other := range others {
-			if self.Network().Connectedness(other.ID) == network.Connected{
+			if self.Network().Connectedness(other.ID) == network.Connected {
 				return
 			}
 			if err := self.Connect(ctx, other); err == nil {
 				isSuccess = true
-			}else{
+			} else {
 				fmt.Println("connection err:", err)
 			}
 		}
-		if !isSuccess{cbErr = errors.New("no bootstraps are connected")}
+		if !isSuccess {
+			cbErr = errors.New("no bootstraps are connected")
+		}
 	}()
 	wg.Wait()
 
@@ -94,7 +98,9 @@ func (d *DiscoveryDHT) DHT() *kad.IpfsDHT {
 	return d.d
 }
 func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) error {
-	if err := connectBootstraps(d.ctx, d.h, bootstraps); err != nil{return err}
+	if err := connectBootstraps(d.ctx, d.h, bootstraps); err != nil {
+		return err
+	}
 	if err := d.d.Bootstrap(d.ctx); err != nil {
 		return err
 	}
@@ -112,7 +118,7 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 		if len(peer.Addrs) <= 0 {
 			continue
 		}
-		if d.h.Network().Connectedness(peer.ID) == network.Connected{
+		if d.h.Network().Connectedness(peer.ID) == network.Connected {
 			continue
 		}
 		if err := d.h.Connect(d.ctx, peer); err != nil {

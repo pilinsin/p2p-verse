@@ -1,10 +1,10 @@
 package crdtverse
 
 import (
-	"strings"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"strings"
 
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
@@ -64,7 +64,7 @@ func (s *hashStore) Close() {
 	}
 	s.logStore.Close()
 }
-func (s *hashStore) Cancel(){
+func (s *hashStore) Cancel() {
 	s.logStore.Cancel()
 }
 func (s *hashStore) Address() string {

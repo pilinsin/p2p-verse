@@ -1,15 +1,15 @@
 package crdtverse
 
 import (
+	"os"
 	"testing"
 	"time"
-	"os"
 
 	query "github.com/ipfs/go-datastore/query"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
-func TestKeyChange(t *testing.T){
+func TestKeyChange(t *testing.T) {
 	testKeyChange(t, pv.SampleHost)
 }
 
@@ -32,7 +32,6 @@ func testKeyChange(t *testing.T, hGen pv.HostGenerator) {
 	db0.ResetKeyPair(priv, pub)
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 
-
 	rs, err := db0.Query(query.Query{
 		Filters: []query.Filter{KeyExistFilter{"aaa"}},
 	})
@@ -42,7 +41,7 @@ func testKeyChange(t *testing.T, hGen pv.HostGenerator) {
 	assertError(t, len(ress) == 2, "the number of records must be 2, but now is", len(ress))
 
 	db0.Close()
-	time.Sleep(time.Second*30)
+	time.Sleep(time.Second * 30)
 	os.RemoveAll("ss")
 	t.Log("finished")
 }

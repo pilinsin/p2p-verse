@@ -1,8 +1,8 @@
 package ipfsverse
 
 import (
-	"testing"
 	pv "github.com/pilinsin/p2p-verse"
+	"testing"
 )
 
 func TestIpfs(t *testing.T) {
