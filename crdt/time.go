@@ -84,7 +84,7 @@ func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, c
 		tc.Close()
 		return nil, err
 	}
-	tc.pStore.autoSync()
+	tc.autoGrant()
 	return tc, nil
 }
 func (cv *crdtVerse) loadTimeController(ctx context.Context, tAddr string) (*timeController, error) {
@@ -99,7 +99,7 @@ func (cv *crdtVerse) loadTimeController(ctx context.Context, tAddr string) (*tim
 
 	tc, err := cv.baseLoadTime(ctx, tp)
 	if err != nil{return nil, err}
-	tc.pStore.autoSync()
+	tc.autoGrant()
 	return tc, nil
 }
 func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*timeController, error) {
@@ -282,12 +282,13 @@ func (tc *timeController) grant() {
 		}
 	}
 }
-func (tc *timeController) AutoGrant() {
+func (tc *timeController) autoGrant() {
 	go func() {
 		ticker := time.NewTicker(tc.cooldown)
 		for {
 			select {
 			case <-ticker.C:
+				tc.pStore.Sync()
 				tc.grant()
 			case <-tc.ctx.Done():
 				return
