@@ -43,8 +43,8 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 		return nil, err
 	}
 	s := &updatableSignatureStore{&updatableStore{st}, priv, pub, ac, tc}
-	if tc != nil {
-		tc.dStore = s
+	if s.tc != nil {
+		s.tc.dStore = s
 	}
 	return s, nil
 }
