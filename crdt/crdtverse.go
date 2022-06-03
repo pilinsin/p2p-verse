@@ -73,6 +73,17 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 		s.Close()
 		return nil, err
 	}
+	if len(opts) > 0{
+		if opts[0].Ac !=nil{
+			opts[0].Ac.autoSync()
+		}
+		if opts[0].Tc != nil{
+			opts[0].Tc.autoGrant()
+			s.autoSync(opts[0].Tc.interval)
+		}
+	}else{
+		s.autoSync()
+	}
 
 	return s, nil
 }
@@ -128,7 +139,16 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 		}
 		return nil, err
 	}
-	s.autoSync()
+
+	if opt.Ac !=nil{
+		opt.Ac.autoSync()
+	}
+	if opt.Tc != nil{
+		opt.Tc.autoGrant()
+		s.autoSync(opt.Tc.interval)
+	}else{
+		s.autoSync()
+	}
 	return s, nil
 }
 
@@ -195,7 +215,7 @@ type IStore interface {
 	Close()
 	Address() string
 	AddrInfo() peer.AddrInfo
-	autoSync()
+	autoSync(...time.Duration)
 	Sync() error
 	Put(string, []byte) error
 	Get(string) ([]byte, error)
@@ -249,9 +269,12 @@ func (s *logStore) AddrInfo() peer.AddrInfo {
 func (s *logStore) Sync() error{
 	return s.dt.Sync(s.ctx, ds.NewKey("/"))	
 }
-func (s *logStore) autoSync() {
-	//AutoSync interval is 5s (= Rebroadcast interval)
-	ticker := time.NewTicker(time.Second*5)
+func (s *logStore) autoSync(ts ...time.Duration) {
+	//default AutoSync interval is 5s (= Rebroadcast interval)
+	t := time.Second*5
+	if len(ts) > 0{t = ts[0]}
+	ticker := time.NewTicker(t)
+
 	go func(){
 		defer ticker.Stop()
 		select{

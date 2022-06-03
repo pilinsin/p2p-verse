@@ -63,11 +63,11 @@ type timeController struct {
 	begin    time.Time
 	end      time.Time
 	eps      time.Duration
-	cooldown time.Duration
+	interval time.Duration
 	n        int
 }
 
-func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, cooldown time.Duration, n int) (*timeController, error) {
+func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, interval time.Duration, n int) (*timeController, error) {
 	exmpl := pv.RandString(32)
 	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 16)
 	name = base64.URLEncoding.EncodeToString(hash)
@@ -79,7 +79,7 @@ func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, c
 	usst := st.(*updatableSignatureStore)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	tc := &timeController{ctx, cancel, nil, usst, name, begin, end, eps, cooldown, n}
+	tc := &timeController{ctx, cancel, nil, usst, name, begin, end, eps, interval, n}
 	if err := tc.pStore.InitPut(exmpl); err != nil {
 		tc.Close()
 		return nil, err
@@ -155,7 +155,7 @@ func (tc *timeController) loadCheck() error {
 	}
 }
 func (tc *timeController) Address() string {
-	tp := &pb.TimeParams{tc.name, tc.begin, tc.end, tc.eps, tc.cooldown, tc.n}
+	tp := &pb.TimeParams{tc.name, tc.begin, tc.end, tc.eps, tc.interval, tc.n}
 	m, err := tp.Marshal()
 	if err != nil {
 		return ""
@@ -286,8 +286,9 @@ func (tc *timeController) grant() {
 	}
 }
 func (tc *timeController) autoGrant() {
+	ticker := time.NewTicker(tc.interval)
 	go func() {
-		ticker := time.NewTicker(tc.cooldown)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:

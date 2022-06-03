@@ -77,7 +77,6 @@ func (s *accessController) init(accesses <-chan string) error {
 	}
 
 	s.store.priv = nil
-	s.store.autoSync()
 	return nil
 }
 func (s *accessController) put(key string, val []byte) error {
@@ -161,6 +160,9 @@ func (s *accessController) Close() {
 }
 func (s *accessController) Cancel() {
 	s.store.Cancel()
+}
+func (s *accessController) autoSync(){
+	s.store.autoSync()
 }
 func (s *accessController) Address() string {
 	pid := PubKeyToStr(s.store.pub)
