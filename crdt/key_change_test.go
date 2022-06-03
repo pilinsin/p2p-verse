@@ -41,7 +41,7 @@ func testKeyChange(t *testing.T, hGen pv.HostGenerator) {
 	assertError(t, len(ress) == 2, "the number of records must be 2, but now is", len(ress))
 
 	db0.Close()
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second)
 	os.RemoveAll("ss")
 	t.Log("finished")
 }

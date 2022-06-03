@@ -24,9 +24,8 @@ func BaseTestLogStore(t *testing.T, hGen pv.HostGenerator) {
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 10)
 
-	checkError(t, db1.Sync())
 	v10, err := db1.Get("aaa")
 	checkError(t, err)
 	t.Log(string(v10))
@@ -44,9 +43,8 @@ func BaseTestLogStore(t *testing.T, hGen pv.HostGenerator) {
 
 	checkError(t, db0.Sync())
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 10)
 
-	checkError(t, db1.Sync())
 	v12, err := db1.Get("aaa")
 	checkError(t, err)
 	t.Log(string(v12))
@@ -61,7 +59,7 @@ func BaseTestLogStore(t *testing.T, hGen pv.HostGenerator) {
 
 	db0.Close()
 	db1.Close()
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second)
 	os.RemoveAll("ls")
 	t.Log("finished")
 }

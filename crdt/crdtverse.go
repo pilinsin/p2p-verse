@@ -128,6 +128,7 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 		}
 		return nil, err
 	}
+	s.autoSync()
 	return s, nil
 }
 
@@ -194,8 +195,8 @@ type IStore interface {
 	Close()
 	Address() string
 	AddrInfo() peer.AddrInfo
+	autoSync()
 	Sync() error
-	Repair() error
 	Put(string, []byte) error
 	Get(string) ([]byte, error)
 	GetSize(string) (int, error)
@@ -245,11 +246,21 @@ func (s *logStore) Address() string {
 func (s *logStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)
 }
-func (s *logStore) Sync() error {
-	return s.dt.Sync(s.ctx, ds.NewKey("/"))
+func (s *logStore) Sync() error{
+	return s.dt.Sync(s.ctx, ds.NewKey("/"))	
 }
-func (s *logStore) Repair() error {
-	return s.dt.Repair()
+func (s *logStore) autoSync() {
+	//AutoSync interval is 5s (= Rebroadcast interval)
+	ticker := time.NewTicker(time.Second*5)
+	go func(){
+		defer ticker.Stop()
+		select{
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil{return}
+		}
+	}()
 }
 func (s *logStore) Put(key string, val []byte) error {
 	exist, err := s.Has(key)

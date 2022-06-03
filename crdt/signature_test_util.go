@@ -26,9 +26,8 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 10)
 
-	checkError(t, db1.Sync())
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
 	checkError(t, err)
 	t.Log(string(v10))
@@ -47,7 +46,6 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 	time.Sleep(time.Second * 10)
 
-	checkError(t, db1.Sync())
 	v12, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
 	checkError(t, err)
 	t.Log(string(v12))
@@ -62,7 +60,7 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 
 	db0.Close()
 	db1.Close()
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second)
 	os.RemoveAll("ss")
 	t.Log("finished")
 }

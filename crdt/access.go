@@ -77,6 +77,7 @@ func (s *accessController) init(accesses <-chan string) error {
 	}
 
 	s.store.priv = nil
+	s.store.autoSync()
 	return nil
 }
 func (s *accessController) put(key string, val []byte) error {
@@ -98,7 +99,10 @@ func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*
 		return nil, err
 	}
 
-	return cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
+	ac, err := cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
+	if err != nil{return nil, err}
+	ac.store.autoSync()
+	return ac, nil
 }
 func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byte, opts ...*StoreOpts) (*accessController, error) {
 	for {
@@ -124,7 +128,6 @@ func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byt
 			}
 			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println(err, ", now reloading...")
-				//time.Sleep(time.Second)
 				continue
 			}
 			return nil, err
@@ -170,12 +173,6 @@ func (s *accessController) Address() string {
 		return ""
 	}
 	return base64.URLEncoding.EncodeToString(m)
-}
-func (s *accessController) Sync() error {
-	return s.store.Sync()
-}
-func (s *accessController) Repair() error {
-	return s.store.Repair()
 }
 func (s *accessController) Has(key string) (bool, error) {
 	sKey := strings.Split(strings.TrimPrefix(key, "/"), "/")[0]

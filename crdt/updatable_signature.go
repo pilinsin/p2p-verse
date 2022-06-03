@@ -45,7 +45,6 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 	s := &updatableSignatureStore{&updatableStore{st}, priv, pub, ac, tc}
 	if tc != nil {
 		tc.dStore = s
-		tc.AutoGrant()
 	}
 	return s, nil
 }
