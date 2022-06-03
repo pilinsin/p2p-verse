@@ -206,7 +206,7 @@ func (tc *timeController) extractTime(key string) (time.Time, error) {
 	}
 	return t, nil
 }
-func (tc *timeController) makedataKeyHash(key string) string {
+func (tc *timeController) makeDataKeyHash(key string) string {
 	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
 	if len(keys) < 3 {
 		return ""
@@ -218,7 +218,7 @@ func (tc *timeController) makedataKeyHash(key string) string {
 	return base64.URLEncoding.EncodeToString(hash)
 }
 func (tc *timeController) put(key string, flag bool) error {
-	keyHash := tc.makedataKeyHash(key)
+	keyHash := tc.makeDataKeyHash(key)
 	if keyHash == "" {
 		return errors.New("invalid key")
 	}
@@ -228,7 +228,7 @@ func (tc *timeController) put(key string, flag bool) error {
 	return tc.pStore.Put(keyHash, b)
 }
 func (tc *timeController) getNewProofs(key string) (query.Results, error) {
-	keyHash := tc.makedataKeyHash(key)
+	keyHash := tc.makeDataKeyHash(key)
 	if keyHash == "" {
 		return nil, errors.New("invalid key")
 	}
@@ -255,6 +255,12 @@ func (tc *timeController) grant() {
 			continue
 		}
 
+		now := time.Now()
+		if ok := now.After(t) && now.Before(t.Add(tc.eps)); ok{
+			tc.put(key, true)
+			continue
+		}
+
 		rs, err := tc.getNewProofs(key)
 		if err != nil {
 			tc.put(key, false)
@@ -272,13 +278,10 @@ func (tc *timeController) grant() {
 			continue
 		}
 		nF := len(fs)
-
 		if nT+nF >= tc.n {
 			tc.put(key, nT > nF)
-		} else {
-			now := time.Now()
-			ok := now.After(t) && now.Before(t.Add(tc.eps))
-			tc.put(key, ok)
+		}else{
+			tc.put(key, false)
 		}
 	}
 }

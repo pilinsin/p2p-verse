@@ -159,6 +159,7 @@ func (s *updatableStore) baseQuery(qs ...query.Query) (query.Results, error) {
 	} else {
 		q = qs[0]
 	}
+	// example: [Am, ..., A1, Bn, ..., B1, ...]
 	q.Orders = append(q.Orders, categoryOrder{}, updatableOrder{})
 	return s.logStore.Query(q)
 }
