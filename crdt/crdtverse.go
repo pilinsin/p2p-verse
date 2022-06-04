@@ -272,7 +272,7 @@ func (s *logStore) Sync() error{
 func (s *logStore) autoSync(ts ...time.Duration) {
 	//default AutoSync interval is 5s (= Rebroadcast interval)
 	t := time.Second*5
-	if len(ts) > 0{t = ts[0]}
+	if len(ts) > 0 && ts[0] < t{t = ts[0]}
 	ticker := time.NewTicker(t)
 
 	go func(){

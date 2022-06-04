@@ -66,7 +66,7 @@ type timeController struct {
 	interval time.Duration
 	n        int
 }
-
+//eps > interval
 func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, interval time.Duration, n int) (*timeController, error) {
 	exmpl := pv.RandString(32)
 	hash := argon2.IDKey([]byte(name), []byte(exmpl), 1, 64*1024, 4, 16)
