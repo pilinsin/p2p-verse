@@ -84,7 +84,6 @@ func (cv *crdtVerse) NewTimeController(name string, begin, end time.Time, eps, i
 		tc.Close()
 		return nil, err
 	}
-	tc.autoGrant()
 	return tc, nil
 }
 func (cv *crdtVerse) loadTimeController(ctx context.Context, tAddr string) (*timeController, error) {
@@ -99,7 +98,6 @@ func (cv *crdtVerse) loadTimeController(ctx context.Context, tAddr string) (*tim
 
 	tc, err := cv.baseLoadTime(ctx, tp)
 	if err != nil{return nil, err}
-	tc.autoGrant()
 	return tc, nil
 }
 func (cv *crdtVerse) baseLoadTime(ctx context.Context, tp *pb.TimeParams) (*timeController, error) {
