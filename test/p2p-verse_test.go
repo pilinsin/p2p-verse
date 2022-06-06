@@ -72,6 +72,7 @@ func testBootstrap(t *testing.T) {
 }
 
 func TestP2pVerse(t *testing.T) {
+
 	t.Log("===== bootstrap =====")
 	testBootstrap(t)
 	t.Log("===== pubsub =====")

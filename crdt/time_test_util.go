@@ -35,7 +35,7 @@ func BaseTestTimeLimit(t *testing.T, hGen pv.HostGenerator) {
 	t.Log("db1 generated")
 
 
-	t.Log(db1.Sync())
+	assertError(t, !db1.isInTime(), "db1.inTime must be false")
 	rs, err := db1.Query()
 	t.Log("db1.Query:", err)
 	for res := range rs.Next(){
