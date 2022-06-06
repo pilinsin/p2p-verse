@@ -1,6 +1,7 @@
 package crdtverse
 
 import (
+	"errors"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -65,9 +66,15 @@ func (o updatableOrder) Compare(a, b query.Entry) int {
 	return 1
 }
 
-type updatableValidator struct{}
-
+type updatableValidator struct{
+	iValidator
+}
+func newUpdatableValidator(s IStore) iValidator{
+	return &updatableValidator{newLogValidator(s)}
+}
 func (v *updatableValidator) Validate(key string, val []byte) bool {
+	if ok := v.iValidator.Validate(key, val); !ok{return false}
+
 	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
 	tKey := keys[len(keys)-1]
 	tb, err := base64.URLEncoding.DecodeString(tKey)
@@ -93,11 +100,15 @@ type updatableStore struct {
 	*logStore
 }
 
-func (cv *crdtVerse) NewUpdatableStore(name string, _ ...*StoreOpts) (IUpdatableStore, error) {
-	st, err := cv.newCRDT(name, &updatableValidator{})
-	if err != nil {
+func (cv *crdtVerse) NewUpdatableStore(name string, opts ...*StoreOpts) (IUpdatableStore, error) {
+	st := &logStore{}
+	if err := cv.initCRDT(name, newUpdatableValidator(st), st); err != nil {
 		return nil, err
 	}
+
+	tl := getLogOpts(opts...)
+	st.timeLimit = tl
+	st.setTimeLimit()
 	return &updatableStore{st}, nil
 }
 
@@ -122,6 +133,7 @@ func (s *updatableStore) Get(key string) ([]byte, error) {
 	}
 	r := <-rs.Next()
 	rs.Close()
+	if r.Value == nil{return nil, errors.New("no valid data")}
 	return r.Value, nil
 }
 func (s *updatableStore) GetSize(key string) (int, error) {
@@ -136,6 +148,7 @@ func (s *updatableStore) GetSize(key string) (int, error) {
 	}
 	r := <-rs.Next()
 	rs.Close()
+	if r.Value == nil{return -1, errors.New("no valid data")}
 	return r.Size, nil
 }
 func (s *updatableStore) Has(key string) (bool, error) {
@@ -211,6 +224,8 @@ func (s *updatableStore) InitPut(key string) error {
 	return s.Put(key, pv.RandBytes(8))
 }
 func (s *updatableStore) LoadCheck() bool {
+	if !s.isInTime(){return true}
+
 	rs, err := s.Query(query.Query{
 		KeysOnly: true,
 		Limit:    1,

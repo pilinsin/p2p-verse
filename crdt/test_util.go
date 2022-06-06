@@ -3,7 +3,6 @@ package crdtverse
 import (
 	"context"
 	"testing"
-	"time"
 
 	pv "github.com/pilinsin/p2p-verse"
 )
@@ -52,12 +51,4 @@ func newAccessController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAd
 	ac, err := v.NewAccessController(name, accesses)
 	checkError(t, err)
 	return ac
-}
-
-func newTimeController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAddrInfo string, begin, end time.Time) *timeController {
-	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, bai)
-	tc, err := v.NewTimeController(name, begin, end, time.Minute*2, time.Second*10, 1)
-	checkError(t, err)
-	return tc
 }

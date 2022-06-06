@@ -1,6 +1,7 @@
 package crdtverse
 
 import (
+	"time"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -18,9 +19,15 @@ func MakeHashKey(bHashStr string, salt []byte) string {
 	return base64.URLEncoding.EncodeToString(hash)
 }
 
-type hashValidator struct{}
-
+type hashValidator struct{
+	iValidator
+}
+func newHashValidator(s IStore) iValidator{
+	return &hashValidator{newLogValidator(s)}
+}
 func (v *hashValidator) Validate(key string, val []byte) bool {
+	if ok := v.iValidator.Validate(key, val); !ok{return false}
+
 	key = strings.TrimPrefix(key, "/")
 	data := &pb.HashData{}
 	if err := proto.Unmarshal(val, data); err != nil {
@@ -30,17 +37,17 @@ func (v *hashValidator) Validate(key string, val []byte) bool {
 	return key == hKey
 }
 
-func getHashOpts(opts ...*StoreOpts) ([]byte, *accessController) {
+func getHashOpts(opts ...*StoreOpts) ([]byte, *accessController, time.Time) {
 	if len(opts) == 0 {
 		salt := make([]byte, 8)
 		rand.Read(salt)
-		return salt, nil
+		return salt, nil, time.Time{}
 	}
 	if opts[0].Salt == nil {
 		opts[0].Salt = make([]byte, 8)
 		rand.Read(opts[0].Salt)
 	}
-	return opts[0].Salt, opts[0].Ac
+	return opts[0].Salt, opts[0].Ac, opts[0].TimeLimit
 }
 
 type hashStore struct {
@@ -50,11 +57,14 @@ type hashStore struct {
 }
 
 func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, error) {
-	salt, ac := getHashOpts(opts...)
-	st, err := cv.newCRDT(name, &hashValidator{})
-	if err != nil {
+	st := &logStore{}
+	if err := cv.initCRDT(name, newHashValidator(st), st); err != nil {
 		return nil, err
 	}
+
+	salt, ac, tl := getHashOpts(opts...)
+	st.timeLimit = tl
+	st.setTimeLimit()
 	return &hashStore{st, salt, ac}, nil
 }
 
@@ -68,10 +78,11 @@ func (s *hashStore) Cancel() {
 	s.logStore.Cancel()
 }
 func (s *hashStore) Address() string {
+	name := s.logStore.Address()
 	if s.ac != nil {
-		return s.name + "/" + s.ac.Address()
+		name += "/" + s.ac.Address()
 	}
-	return s.name
+	return name
 }
 func (s *hashStore) verify(key string) error {
 	if s.ac != nil {
@@ -195,6 +206,8 @@ func (s *hashStore) InitPut(bHashStr string) error {
 	return s.logStore.Put(hKey, m)
 }
 func (s *hashStore) LoadCheck() bool {
+	if !s.isInTime(){return true}
+
 	rs, err := s.logStore.Query(query.Query{
 		KeysOnly: true,
 		Limit:    1,

@@ -48,7 +48,7 @@ func testBootstrap(t *testing.T) {
 	}
 	bAddrs := bootstrapsToBAddrs(bs)
 
-	is, err := ipfs.NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", true, false, bAddrs...)
+	is, err := ipfs.NewIpfsStore(pv.SampleHost, "ipfs", true, bAddrs...)
 	checkError(t, err)
 
 	c, err := is.Add([]byte("meow meow ^.^"))
@@ -56,11 +56,11 @@ func testBootstrap(t *testing.T) {
 	t.Log("add,", c)
 	is.Close()
 
-	is, err = ipfs.NewIpfsStore(pv.SampleHost, "ipfs", "dht-kw", false, false, bAddrs...)
+	is, err = ipfs.NewIpfsStore(pv.SampleHost, "ipfs", false, bAddrs...)
 	checkError(t, err)
 	defer is.Close()
 
-	is2, err := ipfs.NewIpfsStore(pv.SampleHost, "ipfs2", "dht-kw", false, false, bAddrs...)
+	is2, err := ipfs.NewIpfsStore(pv.SampleHost, "ipfs2", false, bAddrs...)
 	checkError(t, err)
 	defer is2.Close()
 
@@ -89,6 +89,6 @@ func TestP2pVerse(t *testing.T) {
 	t.Log("===== access =====")
 	crdt.BaseTestAccessController(t, pv.SampleHost)
 	t.Log("===== time =====")
-	crdt.BaseTestTimeController(t, pv.SampleHost)
+	crdt.BaseTestTimeLimit(t, pv.SampleHost)
 
 }

@@ -1,6 +1,7 @@
 package crdtverse
 
 import (
+	"time"
 	"errors"
 	"strings"
 
@@ -33,7 +34,9 @@ func StrToPubKey(s string) (IPubKey, error) {
 type signatureValidator struct {
 	iValidator
 }
-
+func newSignatureValidator(s IStore) iValidator{
+	return &signatureValidator{newLogValidator(s)}
+}
 func (v *signatureValidator) Validate(key string, val []byte) bool {
 	if ok := v.iValidator.Validate(key, val); !ok {
 		return false
@@ -53,15 +56,15 @@ func (v *signatureValidator) Validate(key string, val []byte) bool {
 	return err == nil && ok
 }
 
-func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController) {
+func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, time.Time) {
 	if len(opts) == 0 {
 		priv, pub, _ := generateKeyPair()
-		return priv, pub, nil
+		return priv, pub, nil, time.Time{}
 	}
 	if opts[0].Pub == nil {
 		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
 	}
-	return opts[0].Priv, opts[0].Pub, opts[0].Ac
+	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].TimeLimit
 }
 
 type ISignatureStore interface {
@@ -77,13 +80,14 @@ type signatureStore struct {
 }
 
 func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (ISignatureStore, error) {
-	priv, pub, ac := getSignatureOpts(opts...)
-
-	v := signatureValidator{&logValidator{}}
-	st, err := cv.newCRDT(name, &v)
-	if err != nil {
+	st := &logStore{}
+	if err := cv.initCRDT(name, newSignatureValidator(st), st); err != nil {
 		return nil, err
 	}
+
+	priv, pub, ac, tl := getSignatureOpts(opts...)
+	st.timeLimit = tl
+	st.setTimeLimit()
 	return &signatureStore{st, priv, pub, ac}, nil
 }
 
@@ -97,7 +101,7 @@ func (s *signatureStore) Cancel() {
 	s.logStore.Cancel()
 }
 func (s *signatureStore) Address() string {
-	name := s.name
+	name := s.logStore.Address()
 	if s.ac != nil {
 		name += "/" + s.ac.Address()
 	}
@@ -239,6 +243,8 @@ func (s *signatureStore) InitPut(key string) error {
 	return s.logStore.Put(key, msd)
 }
 func (s *signatureStore) LoadCheck() bool {
+	if !s.isInTime(){return true}
+
 	rs, err := s.logStore.Query(query.Query{
 		KeysOnly: true,
 		Limit:    1,

@@ -1,6 +1,7 @@
 package crdtverse
 
 import (
+	"time"
 	"errors"
 
 	query "github.com/ipfs/go-datastore/query"
@@ -9,21 +10,28 @@ import (
 	proto "google.golang.org/protobuf/proto"
 )
 
-func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, *timeController) {
+type updatableSignatureValidator struct{
+	iValidator
+}
+func newUpdatableSignatureValidator(s IStore) iValidator{
+	return &updatableValidator{newSignatureValidator(s)}
+}
+
+
+func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, time.Time) {
 	if len(opts) == 0 {
 		priv, pub, _ := generateKeyPair()
-		return priv, pub, nil, nil
+		return priv, pub, nil, time.Time{}
 	}
 	if opts[0].Pub == nil {
 		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
 	}
-	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].Tc
+	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].TimeLimit
 }
 
 type IUpdatableSignatureStore interface {
 	IUpdatableStore
 	ISignatureStore
-	QueryWithoutTc(...query.Query) (query.Results, error)
 }
 
 type updatableSignatureStore struct {
@@ -31,28 +39,21 @@ type updatableSignatureStore struct {
 	priv IPrivKey
 	pub  IPubKey
 	ac   *accessController
-	tc   *timeController
 }
 
 func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IUpdatableSignatureStore, error) {
-	priv, pub, ac, tc := getUpdatableSignatureOpts(opts...)
-
-	v := signatureValidator{&updatableValidator{}}
-	st, err := cv.newCRDT(name, &v)
-	if err != nil {
+	st := &logStore{}
+	if err := cv.initCRDT(name, newUpdatableSignatureValidator(st), st); err != nil {
 		return nil, err
 	}
-	s := &updatableSignatureStore{&updatableStore{st}, priv, pub, ac, tc}
-	if s.tc != nil {
-		s.tc.dStore = s
-	}
-	return s, nil
+
+	priv, pub, ac, tl := getUpdatableSignatureOpts(opts...)
+	st.timeLimit = tl
+	st.setTimeLimit()
+	return &updatableSignatureStore{&updatableStore{st}, priv, pub, ac}, nil
 }
 
 func (s *updatableSignatureStore) Close() {
-	if s.tc != nil {
-		s.tc.Close()
-	}
 	if s.ac != nil {
 		s.ac.Close()
 	}
@@ -62,12 +63,9 @@ func (s *updatableSignatureStore) Cancel() {
 	s.updatableStore.Cancel()
 }
 func (s *updatableSignatureStore) Address() string {
-	name := s.name
+	name := s.updatableStore.Address()
 	if s.ac != nil {
 		name += "/" + s.ac.Address()
-	}
-	if s.tc != nil {
-		name += "/" + s.tc.Address()
 	}
 	return name
 }
@@ -87,24 +85,7 @@ func (s *updatableSignatureStore) verify(key string) error {
 	}
 	return nil
 }
-func (s *updatableSignatureStore) withinTime(key string) error {
-	if s.tc != nil {
-		//key: <pid>/<category>
-		rs, err := s.baseQuery(query.Query{KeysOnly: true, Limit: 1})
-		if err != nil {
-			return errors.New("invalid key")
-		}
-		r := <-rs.Next()
-		rs.Close()
 
-		//r.Key: <pid>/<category>/<tKey>
-		ok, err := s.tc.Has(r.Key)
-		if !ok || err != nil {
-			return errors.New("time limit error")
-		}
-	}
-	return nil
-}
 func (s *updatableSignatureStore) Put(key string, val []byte) error {
 	if s.priv == nil {
 		return errors.New("no valid privKey")
@@ -138,9 +119,6 @@ func (s *updatableSignatureStore) Get(key string) ([]byte, error) {
 	if err := s.verify(key); err != nil {
 		return nil, err
 	}
-	if err := s.withinTime(key); err != nil {
-		return nil, err
-	}
 
 	msd, err := s.updatableStore.Get(key)
 	if err != nil {
@@ -156,9 +134,6 @@ func (s *updatableSignatureStore) GetSize(key string) (int, error) {
 	if err := s.verify(key); err != nil {
 		return -1, err
 	}
-	if err := s.withinTime(key); err != nil {
-		return -1, err
-	}
 
 	val, err := s.Get(key)
 	if err != nil {
@@ -168,9 +143,6 @@ func (s *updatableSignatureStore) GetSize(key string) (int, error) {
 }
 func (s *updatableSignatureStore) Has(key string) (bool, error) {
 	if err := s.verify(key); err != nil {
-		return false, err
-	}
-	if err := s.withinTime(key); err != nil {
 		return false, err
 	}
 
@@ -205,19 +177,6 @@ func (s *updatableSignatureStore) baseQuery(q query.Query) (query.Results, error
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error) {
-	var q query.Query
-	if len(qs) == 0 {
-		q = query.Query{}
-	} else {
-		q = qs[0]
-	}
-	if s.tc != nil {
-		q.Filters = append(q.Filters, tcFilter{s.tc})
-	}
-
-	return s.baseQuery(q)
-}
-func (s *updatableSignatureStore) QueryWithoutTc(qs ...query.Query) (query.Results, error) {
 	var q query.Query
 	if len(qs) == 0 {
 		q = query.Query{}
@@ -263,9 +222,6 @@ func (s *updatableSignatureStore) QueryAll(qs ...query.Query) (query.Results, er
 	} else {
 		q = qs[0]
 	}
-	if s.tc != nil {
-		q.Filters = append(q.Filters, tcFilter{s.tc})
-	}
 
 	return s.baseQueryAll(q)
 }
@@ -297,6 +253,8 @@ func (s *updatableSignatureStore) InitPut(key string) error {
 	return s.updatableStore.Put(key, msd)
 }
 func (s *updatableSignatureStore) LoadCheck() bool {
+	if !s.isInTime(){return true}
+
 	rs, err := s.updatableStore.Query(query.Query{
 		KeysOnly: true,
 		Limit:    1,

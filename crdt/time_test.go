@@ -5,6 +5,6 @@ import (
 	"testing"
 )
 
-func TestTimeController(t *testing.T) {
-	BaseTestTimeController(t, pv.SampleHost)
+func TestTimeLimit(t *testing.T) {
+	BaseTestTimeLimit(t, pv.SampleHost)
 }

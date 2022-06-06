@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"golang.org/x/crypto/argon2"
+	proto "google.golang.org/protobuf/proto"
 
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
@@ -35,15 +37,15 @@ type crdtVerse struct {
 func NewVerse(hGen pv.HostGenerator, dir string, save bool, bootstraps ...peer.AddrInfo) *crdtVerse {
 	return &crdtVerse{hGen, dir, save, bootstraps}
 }
-func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
+func (cv *crdtVerse) initCRDT(name string, v iValidator, st *logStore) error {
 	h, err := cv.hGenerator()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	dirAddr := filepath.Join(cv.dirPath, name)
 	if err := os.MkdirAll(dirAddr, 0700); err != nil {
-		return nil, err
+		return err
 	}
 	dsCancel := func() {}
 	if !cv.save {
@@ -53,10 +55,19 @@ func (cv *crdtVerse) newCRDT(name string, v iValidator) (*logStore, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sp, err := cv.setupStore(ctx, h, name, v)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	st := &logStore{ctx, cancel, dsCancel, name, h, sp.dht, sp.dStore, sp.dt}
-	return st, nil
+
+	st.ctx = ctx
+	st.cancel = cancel
+	st.dsCancel = dsCancel
+	st.name = name
+	st.inTime = true
+	st.h = h
+	st.dht = sp.dht
+	st.dStore = sp.dStore
+	st.dt = sp.dt
+	return nil
 }
 
 func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, error) {
@@ -73,17 +84,13 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 		s.Close()
 		return nil, err
 	}
+
 	if len(opts) > 0{
 		if opts[0].Ac !=nil{
 			opts[0].Ac.autoSync()
 		}
-		if opts[0].Tc != nil{
-			opts[0].Tc.autoGrant()
-			s.autoSync(opts[0].Tc.interval)
-		}
-	}else{
-		s.autoSync()
 	}
+	s.autoSync()
 
 	return s, nil
 }
@@ -120,22 +127,19 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 		}
 		opt.Ac = ac
 	}
-	if len(addrs) > 2 {
-		tc, err := cv.loadTimeController(ctx, addrs[2])
-		if err != nil && opt.Ac != nil {
-			opt.Ac.Close()
-			return nil, err
-		}
-		opt.Tc = tc
-	}
 
-	s, err := cv.baseLoadStore(ctx, addrs[0], mode, opt)
-	if err != nil {
+	name, tl, err := parseAddress(addrs[0])
+	if err != nil{
 		if opt.Ac != nil {
 			opt.Ac.Close()
 		}
-		if opt.Tc != nil {
-			opt.Tc.Close()
+		return nil, err
+	}
+	opt.TimeLimit = tl
+	s, err := cv.baseLoadStore(ctx, name, mode, opt)
+	if err != nil {
+		if opt.Ac != nil {
+			opt.Ac.Close()
 		}
 		return nil, err
 	}
@@ -143,15 +147,25 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 	if opt.Ac !=nil{
 		opt.Ac.autoSync()
 	}
-	if opt.Tc != nil{
-		opt.Tc.autoGrant()
-		s.autoSync(opt.Tc.interval)
-	}else{
-		s.autoSync()
-	}
+	s.autoSync()
 	return s, nil
 }
+func parseAddress(addr string) (string, time.Time, error){
+	if addr == ""{return "", time.Time{}, errors.New("invalid address")}
+	m, err := base64.URLEncoding.DecodeString(addr)
+	if err != nil{return "", time.Time{}, err}
 
+	baseAddress := &pb.BaseAddress{}
+	if err := proto.Unmarshal(m, baseAddress); err != nil{
+		return "", time.Time{}, err
+	}
+
+	tl := time.Time{}
+	if err := tl.UnmarshalBinary(baseAddress.GetTime()); err != nil{
+		return "", time.Time{}, err
+	}
+	return baseAddress.GetName(), tl, nil
+}
 func (cv *crdtVerse) baseLoadStore(ctx context.Context, addr, mode string, opts ...*StoreOpts) (IStore, error) {
 	for {
 		select {
@@ -204,10 +218,14 @@ func (cv *crdtVerse) loadCheck(s IStore) error {
 type iValidator interface {
 	Validate(string, []byte) bool
 }
-type logValidator struct{}
-
+type logValidator struct{
+	s IStore
+}
+func newLogValidator(s IStore) iValidator{
+	return &logValidator{s}
+}
 func (v *logValidator) Validate(key string, val []byte) bool {
-	return true
+	return v.s.isInTime()
 }
 
 type IStore interface {
@@ -215,7 +233,9 @@ type IStore interface {
 	Close()
 	Address() string
 	AddrInfo() peer.AddrInfo
-	autoSync(...time.Duration)
+	isInTime() bool
+	setTimeLimit()
+	autoSync()
 	Sync() error
 	Put(string, []byte) error
 	Get(string) ([]byte, error)
@@ -231,7 +251,13 @@ type StoreOpts struct {
 	Priv IPrivKey
 	Pub  IPubKey
 	Ac   *accessController
-	Tc   *timeController
+	TimeLimit time.Time
+}
+func getLogOpts(opts ...*StoreOpts) time.Time {
+	if len(opts) == 0 {
+		return time.Time{}
+	}
+	return opts[0].TimeLimit
 }
 
 type logStore struct {
@@ -239,14 +265,24 @@ type logStore struct {
 	cancel   func()
 	dsCancel func()
 	name     string
+	timeLimit time.Time
+	inTime 	 bool
 	h        host.Host
 	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	dt       *crdt.Datastore
 }
 
-func (cv *crdtVerse) NewLogStore(name string, _ ...*StoreOpts) (IStore, error) {
-	return cv.newCRDT(name, &logValidator{})
+func (cv *crdtVerse) NewLogStore(name string, opts ...*StoreOpts) (IStore, error) {
+	st := &logStore{}
+	if err := cv.initCRDT(name, &logValidator{st}, st); err != nil{
+		return nil, err
+	}
+
+	tl := getLogOpts(opts...)
+	st.timeLimit = tl
+	st.setTimeLimit()
+	return st, nil
 }
 
 func (s *logStore) Cancel() {
@@ -261,27 +297,57 @@ func (s *logStore) Close() {
 	s.dsCancel()
 }
 func (s *logStore) Address() string {
-	return s.name
+	mt, err := s.timeLimit.MarshalBinary()
+	if err != nil{return ""}
+	baseAddress := &pb.BaseAddress{
+		Name: s.name,
+		Time: mt,
+	}
+	m, err := proto.Marshal(baseAddress)
+	if err != nil{return ""}
+	return base64.URLEncoding.EncodeToString(m)
 }
 func (s *logStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)
 }
-func (s *logStore) Sync() error{
-	return s.dt.Sync(s.ctx, ds.NewKey("/"))	
-}
-func (s *logStore) autoSync(ts ...time.Duration) {
-	//default AutoSync interval is 5s (= Rebroadcast interval)
-	t := time.Second*5
-	if len(ts) > 0 && ts[0] < t{t = ts[0]}
-	ticker := time.NewTicker(t)
-
+func (s *logStore) isInTime() bool{return s.inTime}
+func (s *logStore) setTimeLimit(){
+	if !s.inTime{return}
+	if s.timeLimit.Equal(time.Time{}){return}
+	if s.timeLimit.Before(time.Now()){
+		s.inTime = false
+		return
+	}
 	go func(){
+		ticker := time.NewTicker(s.timeLimit.Sub(time.Now()))
 		defer ticker.Stop()
 		select{
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil{return}
+			s.Sync()
+			s.inTime = false
+		}
+	}()
+}
+func (s *logStore) Sync() error{
+	if !s.inTime{return nil}
+	return s.dt.Sync(s.ctx, ds.NewKey("/"))
+}
+func (s *logStore) autoSync() {
+	//default AutoSync interval is 5s (= Rebroadcast interval)
+	ticker := time.NewTicker(time.Second*5)
+
+	go func(){
+		defer ticker.Stop()
+		for{
+			select{
+			case <-s.ctx.Done():
+				return
+			case <-ticker.C:
+				if !s.inTime{return}
+				if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil{return}
+			}
 		}
 	}()
 }
@@ -293,7 +359,10 @@ func (s *logStore) Put(key string, val []byte) error {
 	return s.dt.Put(s.ctx, ds.NewKey(key), val)
 }
 func (s *logStore) Get(key string) ([]byte, error) {
-	return s.dt.Get(s.ctx, ds.NewKey(key))
+	b, err := s.dt.Get(s.ctx, ds.NewKey(key))
+	if err != nil{return nil, err}
+	if b == nil{return nil, errors.New("no valid data")}
+	return b, nil
 }
 func (s *logStore) GetSize(key string) (int, error) {
 	return s.dt.GetSize(s.ctx, ds.NewKey(key))
@@ -315,6 +384,8 @@ func (s *logStore) InitPut(key string) error {
 	return s.Put(key, pv.RandBytes(8))
 }
 func (s *logStore) LoadCheck() bool {
+	if !s.isInTime(){return true}
+
 	rs, err := s.Query(query.Query{
 		KeysOnly: true,
 		Limit:    1,
