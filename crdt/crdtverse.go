@@ -87,10 +87,10 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 
 	if len(opts) > 0{
 		if opts[0].Ac !=nil{
-			opts[0].Ac.autoSync()
+			opts[0].Ac.AutoSync()
 		}
 	}
-	s.autoSync()
+	s.AutoSync()
 
 	return s, nil
 }
@@ -145,9 +145,9 @@ func (cv *crdtVerse) LoadStore(ctx context.Context, addr, mode string, opts ...*
 	}
 
 	if opt.Ac !=nil{
-		opt.Ac.autoSync()
+		opt.Ac.AutoSync()
 	}
-	s.autoSync()
+	s.AutoSync()
 	return s, nil
 }
 func parseAddress(addr string) (string, time.Time, error){
@@ -197,6 +197,7 @@ func (cv *crdtVerse) loadCheck(s IStore) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -235,7 +236,7 @@ type IStore interface {
 	AddrInfo() peer.AddrInfo
 	isInTime() bool
 	setTimeLimit()
-	autoSync()
+	AutoSync()
 	Sync() error
 	Put(string, []byte) error
 	Get(string) ([]byte, error)
@@ -334,7 +335,7 @@ func (s *logStore) Sync() error{
 	if !s.inTime{return nil}
 	return s.dt.Sync(s.ctx, ds.NewKey("/"))
 }
-func (s *logStore) autoSync() {
+func (s *logStore) AutoSync() {
 	//default AutoSync interval is 5s (= Rebroadcast interval)
 	ticker := time.NewTicker(time.Second*5)
 

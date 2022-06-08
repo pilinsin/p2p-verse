@@ -98,10 +98,7 @@ func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*
 		return nil, err
 	}
 
-	ac, err := cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
-	if err != nil{return nil, err}
-	ac.store.autoSync()
-	return ac, nil
+	return cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
 }
 func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byte, opts ...*StoreOpts) (*accessController, error) {
 	for {
@@ -137,6 +134,7 @@ func (s *accessController) loadCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -161,8 +159,8 @@ func (s *accessController) Close() {
 func (s *accessController) Cancel() {
 	s.store.Cancel()
 }
-func (s *accessController) autoSync(){
-	s.store.autoSync()
+func (s *accessController) AutoSync(){
+	s.store.AutoSync()
 }
 func (s *accessController) Address() string {
 	pid := PubKeyToStr(s.store.pub)
