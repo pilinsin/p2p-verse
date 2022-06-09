@@ -16,7 +16,6 @@ import (
 	uio "github.com/ipfs/go-unixfs/io"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
 
 type Ipfs interface {
@@ -34,6 +33,7 @@ type ipfsStore struct {
 	cancel   func()
 	dsCancel func()
 	h        host.Host
+	dht *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	ipfs     *ipfslt.Peer
 }
@@ -59,24 +59,27 @@ func NewIpfsStore(hGen pv.HostGenerator, dirPath string, save bool, bootstraps .
 		return nil, err
 	}
 
+	dht, err := pv.NewDHT(h)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	dht, err := kad.New(ctx, h)
+	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
 	if err != nil {
 		return nil, err
 	}
-	ipfs, err := ipfslt.New(ctx, store, h, dht, nil)
-	if err != nil {
+	if err := dht.Bootstrap("ipfs-keyword", bootstraps); err != nil{
 		return nil, err
 	}
-	ipfs.Bootstrap(bootstraps)
 
-
-	return &ipfsStore{ctx, cancel, dsCancel, h, store, ipfs}, nil
+	return &ipfsStore{ctx, cancel, dsCancel, h, dht, store, ipfs}, nil
 }
 func (s *ipfsStore) Close() {
 	s.cancel()
 	s.dStore.Close()
 	s.dsCancel()
+	s.dht.Close()
 	s.h = nil
 }
 

@@ -11,7 +11,6 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2ppubsub "github.com/libp2p/go-libp2p-pubsub"
-	kad "github.com/libp2p/go-libp2p-kad-dht"
 
 	ipfslt "github.com/hsanjuan/ipfs-lite"
 	cid "github.com/ipfs/go-cid"
@@ -20,15 +19,18 @@ import (
 	crdt "github.com/ipfs/go-ds-crdt"
 	crdtpb "github.com/ipfs/go-ds-crdt/pb"
 	dag "github.com/ipfs/go-merkledag"
+
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 type storeParams struct {
+	dht *pv.DiscoveryDHT
 	dStore ds.Datastore
 	dt     *crdt.Datastore
 }
 
 func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v iValidator) (*storeParams, error) {
-	dht, err := kad.New(ctx, h)
+	dht, err := pv.NewDHT(h)
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +43,10 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 
-	ipfs, err := ipfslt.New(ctx, store, h, dht, nil)
+	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
 	if err != nil {
 		return nil, err
 	}
-	ipfs.Bootstrap(cv.bootstraps)
 
 	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
 	if err != nil {
@@ -67,8 +68,11 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 	if err != nil {
 		return nil, err
 	}
-
-	return &storeParams{store, dt}, nil
+	
+	if err := dht.Bootstrap("crdt-keyword", cv.bootstraps); err != nil{
+		return nil, err
+	}
+	return &storeParams{dht, store, dt}, nil
 }
 
 func validatorFunc(hid peer.ID, v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator {

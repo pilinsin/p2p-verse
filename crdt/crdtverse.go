@@ -64,6 +64,7 @@ func (cv *crdtVerse) initCRDT(name string, v iValidator, st *logStore) error {
 	st.name = name
 	st.inTime = true
 	st.h = h
+	st.dht = sp.dht
 	st.dStore = sp.dStore
 	st.dt = sp.dt
 	return nil
@@ -268,6 +269,7 @@ type logStore struct {
 	timeLimit time.Time
 	inTime 	 bool
 	h        host.Host
+	dht *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	dt       *crdt.Datastore
 }
@@ -288,6 +290,7 @@ func (s *logStore) Cancel() {
 	s.cancel()
 	s.dt.Close()
 	s.dStore.Close()
+	s.dht.Close()
 	s.h = nil
 }
 func (s *logStore) Close() {
