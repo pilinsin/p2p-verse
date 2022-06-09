@@ -68,6 +68,6 @@ func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
 		tpc1.Publish([]byte(fmt.Sprintln("message ", i)))
 	}
 
-	<-time.Tick(10 * time.Second)
+	<-time.Tick(time.Second * 10)
 	t.Log("finished")
 }

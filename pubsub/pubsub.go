@@ -17,13 +17,19 @@ import (
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery ->
 // -> JoinTopic -> Subscribe -> Publish/Get
 
+type IPubSub interface{
+	Close()
+	AddrInfo() peer.AddrInfo
+	Topics() []string
+	JoinTopic(string) (IRoom, error)
+}
 type api struct {
 	ctx context.Context
 	h   host.Host
 	ps  *p2ppubsub.PubSub
 }
 
-func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (*api, error) {
+func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (IPubSub, error) {
 	self, err := hGen()
 	if err != nil {
 		return nil, err
@@ -51,6 +57,14 @@ func (a *api) Topics() []string {
 	return a.ps.GetTopics()
 }
 
+
+type IRoom interface{
+	Close()
+	ListPeers() []peer.ID
+	Publish([]byte) error
+	Get() (*recievedMessage, error)
+	GetAll() ([]*recievedMessage, error)
+}
 type room struct {
 	ctx       context.Context
 	topic     *p2ppubsub.Topic
@@ -58,7 +72,7 @@ type room struct {
 	sub       *p2ppubsub.Subscription
 }
 
-func (a *api) JoinTopic(topicName string) (*room, error) {
+func (a *api) JoinTopic(topicName string) (IRoom, error) {
 	topic, err := a.ps.Join(encodeTopicName(topicName))
 	if err != nil {
 		return nil, err

@@ -39,6 +39,7 @@ func TestBootstrapStore(t *testing.T){
 	bs2, err := LoadBootstrapStore("dir2")
 	checkError(t, err)
 	time.Sleep(time.Minute)
+
 	ais2, err := bs2.Get(stName)
 	checkError(t, err)
 	t.Log("bs2.Get:", ais2)

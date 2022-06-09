@@ -12,13 +12,6 @@ import (
 	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
 
-func sliceToMap(slc []peer.AddrInfo) map[peer.ID]peer.AddrInfo {
-	m := make(map[peer.ID]peer.AddrInfo)
-	for _, elem := range slc {
-		m[elem.ID] = elem
-	}
-	return m
-}
 
 type HostGenerator func(seeds ...io.Reader) (host.Host, error)
 
@@ -71,7 +64,7 @@ func NewBootstrap(hGen HostGenerator, others ...peer.AddrInfo) (IBootstrap, erro
 			d.Close()
 			return nil, err
 		}
-		othersMap := sliceToMap(others)
+		othersMap := AddrInfoSliceToMap(others)
 		for _, pid := range h.Network().Peers() {
 			if ai, ok := othersMap[pid]; ok {
 				peers = append(peers, ai)

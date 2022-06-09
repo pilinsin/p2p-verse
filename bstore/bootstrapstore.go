@@ -35,18 +35,6 @@ func stAddrToKey(stAddr string) string{
 	return base64.URLEncoding.EncodeToString(hash)
 }
 
-type bAddrFilter struct{}
-func (f bAddrFilter) Filter(e query.Entry) bool {
-	bAddr := string(e.Value)
-
-	ai := pv.AddrInfoFromString(bAddr)
-	if ai.ID == "" || len(ai.Addrs) == 0 {
-		if tmp := pv.AddrInfosFromString(bAddr); len(tmp) == 0{
-			return false
-		}
-	}
-	return true
-}
 
 type IBootstrapStore interface{
 	Close()
@@ -146,7 +134,6 @@ func (bs *bootstrapStore) Put(stAddr, bAddr string) error{
 	return bs.store.Put(key, val)
 }
 func (bs *bootstrapStore) Get(stAddr string) ([]peer.AddrInfo, error){
-	//baf := bAddrFilter{}
 	kef := crdt.KeyExistFilter{stAddrToKey(stAddr)}
 	rs, err := bs.store.Query(query.Query{
 		Filters: []query.Filter{kef},

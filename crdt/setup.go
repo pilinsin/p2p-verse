@@ -11,7 +11,7 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2ppubsub "github.com/libp2p/go-libp2p-pubsub"
-	pv "github.com/pilinsin/p2p-verse"
+	kad "github.com/libp2p/go-libp2p-kad-dht"
 
 	ipfslt "github.com/hsanjuan/ipfs-lite"
 	cid "github.com/ipfs/go-cid"
@@ -23,13 +23,12 @@ import (
 )
 
 type storeParams struct {
-	dht    *pv.DiscoveryDHT
 	dStore ds.Datastore
 	dt     *crdt.Datastore
 }
 
 func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v iValidator) (*storeParams, error) {
-	dht, err := pv.NewDHT(h)
+	dht, err := kad.New(ctx, h)
 	if err != nil {
 		return nil, err
 	}
@@ -42,15 +41,17 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 
-	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
+	ipfs, err := ipfslt.New(ctx, store, h, dht, nil)
 	if err != nil {
 		return nil, err
 	}
+	ipfs.Bootstrap(cv.bootstraps)
 
 	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
 	}
+
 	valid := validatorFunc(h.ID(), v, store, ds.NewKey(name), ipfs)
 	if err := gossip.RegisterTopicValidator(name, valid); err != nil {
 		return nil, err
@@ -67,11 +68,7 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 
-	keyword := "crdt-verse:jef1aenlva_pvmwl3q,gbpjopaejeIgpbosae"
-	if err := dht.Bootstrap(keyword, cv.bootstraps); err != nil {
-		return nil, err
-	}
-	return &storeParams{dht, store, dt}, nil
+	return &storeParams{store, dt}, nil
 }
 
 func validatorFunc(hid peer.ID, v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator {

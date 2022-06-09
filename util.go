@@ -24,6 +24,14 @@ func RandString(bSize int) string {
 	return base64.URLEncoding.EncodeToString(bs)
 }
 
+func AddrInfoSliceToMap(slc []peer.AddrInfo) map[peer.ID]peer.AddrInfo {
+	m := make(map[peer.ID]peer.AddrInfo)
+	for _, elem := range slc {
+		m[elem.ID] = elem
+	}
+	return m
+}
+
 func HostImporter(h host.Host) func(...io.Reader) (host.Host, error) {
 	return func(...io.Reader) (host.Host, error) {
 		return h, nil
