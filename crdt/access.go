@@ -4,17 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
-	"fmt"
 	"strings"
-	"time"
 
 	query "github.com/ipfs/go-datastore/query"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	"golang.org/x/crypto/argon2"
 	proto "google.golang.org/protobuf/proto"
 
-	pv "github.com/pilinsin/p2p-verse"
 )
 
 type acFilter struct {
@@ -37,19 +33,19 @@ func getAccessOpts(opts ...*StoreOpts) []byte {
 
 type accessController struct {
 	store *signatureStore
-	name  string
+	addr  string
 	salt  []byte
 }
 
 func (cv *crdtVerse) NewAccessController(name string, accesses <-chan string, opts ...*StoreOpts) (*accessController, error) {
 	salt := getAccessOpts(opts...)
 
-	st, err := cv.NewSignatureStore(name, opts...)
+	st, err := cv.NewStore(name, "signature", opts...)
 	if err != nil {
 		return nil, err
 	}
 	sgst := st.(*signatureStore)
-	ac := &accessController{sgst, name, salt}
+	ac := &accessController{sgst, st.Address(), salt}
 	if err := ac.init(accesses); err != nil {
 		ac.Close()
 		return nil, err
@@ -68,12 +64,6 @@ func (s *accessController) init(accesses <-chan string) error {
 			s.Close()
 			return err
 		}
-	}
-
-	exmpl := pv.RandString(32)
-	if err := s.store.InitPut(exmpl); err != nil {
-		s.Close()
-		return err
 	}
 
 	s.store.priv = nil
@@ -98,75 +88,25 @@ func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*
 		return nil, err
 	}
 
-	return cv.baseLoadAccess(ctx, ap.GetName(), ap.GetSalt(), &StoreOpts{Priv: nil, Pub: pub})
-}
-func (cv *crdtVerse) baseLoadAccess(ctx context.Context, addr string, salt []byte, opts ...*StoreOpts) (*accessController, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			st, err := cv.NewSignatureStore(addr, opts...)
-			if err != nil {
-				if strings.HasPrefix(err.Error(), dirLock) {
-					fmt.Println(err, ", now reloading...")
-					continue
-				}
-				return nil, err
-			}
-
-			sgst := st.(*signatureStore)
-			acst := &accessController{sgst, addr, salt}
-
-			err = acst.loadCheck()
-			if err == nil {
-				return acst, nil
-			}
-			if strings.HasPrefix(err.Error(), timeout) {
-				fmt.Println(err, ", now reloading...")
-				continue
-			}
-			return nil, err
-		}
+	opt := &StoreOpts{Priv: nil, Pub: pub}
+	st, err := cv.NewStore(ap.GetAddress(), "signature", opt)
+	if err != nil {
+		return nil, err
 	}
+	sgst := st.(*signatureStore)
+	acst := &accessController{sgst, ap.GetAddress(), ap.GetSalt()}
+	return acst, nil
 }
-func (s *accessController) loadCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			s.Cancel()
-			return errors.New("load error: sync timeout (access)")
-		case <-ticker.C:
-			if err := s.store.Sync(); err != nil {
-				s.Close()
-				return err
-			}
 
-			if ok := s.store.LoadCheck(); ok {
-				return nil
-			}
-		}
-	}
-}
 
 func (s *accessController) Close() {
 	s.store.Close()
-}
-func (s *accessController) Cancel() {
-	s.store.Cancel()
-}
-func (s *accessController) AutoSync(){
-	s.store.AutoSync()
 }
 func (s *accessController) Address() string {
 	pid := PubKeyToStr(s.store.pub)
 	m, err := proto.Marshal(&pb.AccessParams{
 		Pid:  pid,
-		Name: s.name,
+		Address: s.addr,
 		Salt: s.salt,
 	})
 	if err != nil {

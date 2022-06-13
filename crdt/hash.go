@@ -1,17 +1,16 @@
 package crdtverse
 
 import (
-	"time"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"strings"
+	"time"
 
-	query "github.com/ipfs/go-datastore/query"
-	pv "github.com/pilinsin/p2p-verse"
-	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	"golang.org/x/crypto/argon2"
+	query "github.com/ipfs/go-datastore/query"
 	proto "google.golang.org/protobuf/proto"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 )
 
 func MakeHashKey(bHashStr string, salt []byte) string {
@@ -19,14 +18,17 @@ func MakeHashKey(bHashStr string, salt []byte) string {
 	return base64.URLEncoding.EncodeToString(hash)
 }
 
-type hashValidator struct{
+type hashValidator struct {
 	iValidator
 }
-func newHashValidator(s IStore) iValidator{
-	return &hashValidator{newLogValidator(s)}
+
+func newHashValidator(s IStore) iValidator {
+	return &hashValidator{newBaseValidator(s)}
 }
 func (v *hashValidator) Validate(key string, val []byte) bool {
-	if ok := v.iValidator.Validate(key, val); !ok{return false}
+	if ok := v.iValidator.Validate(key, val); !ok {
+		return false
+	}
 
 	key = strings.TrimPrefix(key, "/")
 	data := &pb.HashData{}
@@ -51,13 +53,13 @@ func getHashOpts(opts ...*StoreOpts) ([]byte, *accessController, time.Time) {
 }
 
 type hashStore struct {
-	*logStore
+	*baseStore
 	salt []byte
 	ac   *accessController
 }
 
 func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, error) {
-	st := &logStore{}
+	st := &baseStore{}
 	if err := cv.initCRDT(name, newHashValidator(st), st); err != nil {
 		return nil, err
 	}
@@ -72,18 +74,25 @@ func (s *hashStore) Close() {
 	if s.ac != nil {
 		s.ac.Close()
 	}
-	s.logStore.Close()
+	s.baseStore.Close()
 }
-func (s *hashStore) Cancel() {
-	s.logStore.Cancel()
-}
+
+
 func (s *hashStore) Address() string {
-	name := s.logStore.Address()
+	name := s.baseStore.Address()
 	if s.ac != nil {
 		name += "/" + s.ac.Address()
 	}
 	return name
 }
+
+func (s *hashStore) Sync() error{
+	if s.ac != nil {
+		if err := s.ac.store.Sync(); err != nil{return err}
+	}
+	return s.baseStore.Sync()
+}
+
 func (s *hashStore) verify(key string) error {
 	if s.ac != nil {
 		ok, err := s.ac.Has(key)
@@ -93,6 +102,7 @@ func (s *hashStore) verify(key string) error {
 	}
 	return nil
 }
+
 func (s *hashStore) Put(bHashStr string, val []byte) error {
 	key := MakeHashKey(bHashStr, s.salt)
 	if err := s.verify(key); err != nil {
@@ -108,14 +118,14 @@ func (s *hashStore) Put(bHashStr string, val []byte) error {
 	if err != nil {
 		return err
 	}
-	return s.logStore.Put(key, m)
+	return s.baseStore.Put(key, m)
 }
 func (s *hashStore) get(key string) ([]byte, error) {
 	if err := s.verify(key); err != nil {
 		return nil, err
 	}
 
-	m, err := s.logStore.Get(key)
+	m, err := s.baseStore.Get(key)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +155,7 @@ func (s *hashStore) has(key string) (bool, error) {
 	if err := s.verify(key); err != nil {
 		return false, err
 	}
-	return s.logStore.Has(key)
+	return s.baseStore.Has(key)
 }
 func (s *hashStore) Has(key string) (bool, error) {
 	ok, err := s.has(key)
@@ -166,7 +176,7 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	if s.ac != nil {
 		q.Filters = append(q.Filters, acFilter{s.ac})
 	}
-	rs, err := s.logStore.Query(q)
+	rs, err := s.baseStore.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -190,31 +200,29 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *hashStore) InitPut(bHashStr string) error {
-	hKey := MakeHashKey(bHashStr, s.salt)
-	val := pv.RandBytes(8)
+func (s *hashStore) initPut() error{
+	key := MakeHashKey(s.name, s.salt)
 
 	hd := &pb.HashData{
-		BaseHash: bHashStr,
+		BaseHash: s.name,
 		Salt:     s.salt,
-		Value:    val,
+		Value:    []byte(s.name),
 	}
 	m, err := proto.Marshal(hd)
 	if err != nil {
 		return err
 	}
-	return s.logStore.Put(hKey, m)
+	return s.baseStore.Put(key, m)
 }
-func (s *hashStore) LoadCheck() bool {
-	if !s.isInTime(){return true}
+func (s *hashStore) loadCheck() bool{
+	if !s.inTime{return true}
 
-	rs, err := s.logStore.Query(query.Query{
+	rs, err := s.baseStore.Query(query.Query{
 		KeysOnly: true,
-		Limit:    1,
+		Limit: 1,
 	})
-	if err != nil {
-		return false
-	}
+	if err != nil{return false}
+
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil
 }

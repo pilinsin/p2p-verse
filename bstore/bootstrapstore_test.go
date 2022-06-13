@@ -1,9 +1,9 @@
 package bootstrapstore
 
-import(
+import (
 	"testing"
-	"os"
 	"time"
+	"os"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -22,7 +22,7 @@ func assertError(t *testing.T, cond bool, args ...interface{}) {
 	}
 }
 
-func TestBootstrapStore(t *testing.T){
+func TestBootstrapStore(t *testing.T) {
 	stName := "storeName: st.Address()"
 	b, err := pv.NewBootstrap(pv.SampleHost)
 	checkError(t, err)
@@ -31,19 +31,20 @@ func TestBootstrapStore(t *testing.T){
 
 	bs1, err := NewBootstrapStore("dir1")
 	checkError(t, err)
+
+	bs2, err := NewBootstrapStore("dir2", bs1.Address())
+	checkError(t, err)
+
 	checkError(t, bs1.Put(stName, bAddr))
+	time.Sleep(time.Second*10)
+
 	ais1, err := bs1.Get(stName)
 	checkError(t, err)
 	t.Log("bs1.Get:", ais1)
 
-	bs2, err := LoadBootstrapStore("dir2")
-	checkError(t, err)
-	time.Sleep(time.Minute)
-
 	ais2, err := bs2.Get(stName)
 	checkError(t, err)
 	t.Log("bs2.Get:", ais2)
-
 
 	bs1.Close()
 	bs2.Close()

@@ -1,22 +1,21 @@
 package crdtverse
 
 import (
-	"time"
 	"errors"
+	"time"
 
 	query "github.com/ipfs/go-datastore/query"
-	pv "github.com/pilinsin/p2p-verse"
-	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 )
 
-type updatableSignatureValidator struct{
+type updatableSignatureValidator struct {
 	iValidator
 }
-func newUpdatableSignatureValidator(s IStore) iValidator{
+
+func newUpdatableSignatureValidator(s IStore) iValidator {
 	return &updatableValidator{newSignatureValidator(s)}
 }
-
 
 func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, time.Time) {
 	if len(opts) == 0 {
@@ -42,7 +41,7 @@ type updatableSignatureStore struct {
 }
 
 func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IUpdatableSignatureStore, error) {
-	st := &logStore{}
+	st := &baseStore{}
 	if err := cv.initCRDT(name, newUpdatableSignatureValidator(st), st); err != nil {
 		return nil, err
 	}
@@ -59,9 +58,7 @@ func (s *updatableSignatureStore) Close() {
 	}
 	s.updatableStore.Close()
 }
-func (s *updatableSignatureStore) Cancel() {
-	s.updatableStore.Cancel()
-}
+
 func (s *updatableSignatureStore) Address() string {
 	name := s.updatableStore.Address()
 	if s.ac != nil {
@@ -69,6 +66,14 @@ func (s *updatableSignatureStore) Address() string {
 	}
 	return name
 }
+
+func (s *updatableSignatureStore) Sync() error{
+	if s.ac != nil {
+		if err := s.ac.store.Sync(); err != nil{return err}
+	}
+	return s.updatableStore.Sync()
+}
+
 func (s *updatableSignatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
 	if priv == nil || pub == nil {
 		priv, pub, _ = generateKeyPair()
@@ -226,12 +231,12 @@ func (s *updatableSignatureStore) QueryAll(qs ...query.Query) (query.Results, er
 	return s.baseQueryAll(q)
 }
 
-func (s *updatableSignatureStore) InitPut(key string) error {
+func (s *updatableSignatureStore) initPut() error{
 	if s.priv == nil {
 		return errors.New("no valid privKey")
 	}
 
-	val := pv.RandBytes(8)
+	val := []byte(s.name)
 	sign, err := s.priv.Sign(val)
 	if err != nil {
 		return err
@@ -249,19 +254,19 @@ func (s *updatableSignatureStore) InitPut(key string) error {
 	if sKey == "" {
 		return errors.New("invalid pubKey")
 	}
-	key = sKey + "/" + key
+
+	key := sKey + "/" + s.name
 	return s.updatableStore.Put(key, msd)
 }
-func (s *updatableSignatureStore) LoadCheck() bool {
-	if !s.isInTime(){return true}
+func (s *updatableSignatureStore) loadCheck() bool{
+	if !s.inTime{return true}
 
 	rs, err := s.updatableStore.Query(query.Query{
 		KeysOnly: true,
-		Limit:    1,
+		Limit: 1,
 	})
-	if err != nil {
-		return false
-	}
+	if err != nil{return false}
+
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil
 }

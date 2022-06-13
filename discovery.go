@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	discovery "github.com/libp2p/go-libp2p-core/discovery"
 	host "github.com/libp2p/go-libp2p-core/host"
 	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -96,6 +97,9 @@ func (d *DiscoveryDHT) Close() {
 }
 func (d *DiscoveryDHT) DHT() *kad.IpfsDHT {
 	return d.d
+}
+func (d *DiscoveryDHT) Discovery() discovery.Discovery {
+	return p2pdiscovery.NewRoutingDiscovery(d.d)
 }
 func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) error {
 	if err := connectBootstraps(d.ctx, d.h, bootstraps); err != nil {

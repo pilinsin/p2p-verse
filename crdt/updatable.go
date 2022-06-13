@@ -1,13 +1,12 @@
 package crdtverse
 
 import (
-	"errors"
 	"encoding/base64"
+	"errors"
 	"strings"
 	"time"
 
 	query "github.com/ipfs/go-datastore/query"
-	pv "github.com/pilinsin/p2p-verse"
 )
 
 //data key: <category>/<tKey>
@@ -66,14 +65,17 @@ func (o updatableOrder) Compare(a, b query.Entry) int {
 	return 1
 }
 
-type updatableValidator struct{
+type updatableValidator struct {
 	iValidator
 }
-func newUpdatableValidator(s IStore) iValidator{
-	return &updatableValidator{newLogValidator(s)}
+
+func newUpdatableValidator(s IStore) iValidator {
+	return &updatableValidator{newBaseValidator(s)}
 }
 func (v *updatableValidator) Validate(key string, val []byte) bool {
-	if ok := v.iValidator.Validate(key, val); !ok{return false}
+	if ok := v.iValidator.Validate(key, val); !ok {
+		return false
+	}
 
 	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
 	tKey := keys[len(keys)-1]
@@ -97,11 +99,11 @@ type IUpdatableStore interface {
 }
 
 type updatableStore struct {
-	*logStore
+	*baseStore
 }
 
 func (cv *crdtVerse) NewUpdatableStore(name string, opts ...*StoreOpts) (IUpdatableStore, error) {
-	st := &logStore{}
+	st := &baseStore{}
 	if err := cv.initCRDT(name, newUpdatableValidator(st), st); err != nil {
 		return nil, err
 	}
@@ -120,10 +122,10 @@ func (s *updatableStore) Put(key string, val []byte) error {
 	tKey := base64.URLEncoding.EncodeToString(tb)
 
 	key += "/" + tKey
-	return s.logStore.Put(key, val)
+	return s.baseStore.Put(key, val)
 }
 func (s *updatableStore) Get(key string) ([]byte, error) {
-	rs, err := s.logStore.Query(query.Query{
+	rs, err := s.baseStore.Query(query.Query{
 		Prefix: "/" + key,
 		Orders: []query.Order{updatableOrder{}},
 		Limit:  1,
@@ -133,11 +135,13 @@ func (s *updatableStore) Get(key string) ([]byte, error) {
 	}
 	r := <-rs.Next()
 	rs.Close()
-	if r.Value == nil{return nil, errors.New("no valid data")}
+	if r.Value == nil {
+		return nil, errors.New("no valid data")
+	}
 	return r.Value, nil
 }
 func (s *updatableStore) GetSize(key string) (int, error) {
-	rs, err := s.logStore.Query(query.Query{
+	rs, err := s.baseStore.Query(query.Query{
 		Prefix:       "/" + key,
 		Orders:       []query.Order{updatableOrder{}},
 		ReturnsSizes: true,
@@ -148,11 +152,13 @@ func (s *updatableStore) GetSize(key string) (int, error) {
 	}
 	r := <-rs.Next()
 	rs.Close()
-	if r.Value == nil{return -1, errors.New("no valid data")}
+	if r.Value == nil {
+		return -1, errors.New("no valid data")
+	}
 	return r.Size, nil
 }
 func (s *updatableStore) Has(key string) (bool, error) {
-	rs, err := s.logStore.Query(query.Query{
+	rs, err := s.baseStore.Query(query.Query{
 		Prefix:   "/" + key,
 		Orders:   []query.Order{updatableOrder{}},
 		KeysOnly: true,
@@ -174,7 +180,7 @@ func (s *updatableStore) baseQuery(qs ...query.Query) (query.Results, error) {
 	}
 	// example: [Am, ..., A1, Bn, ..., B1, ...]
 	q.Orders = append(q.Orders, categoryOrder{}, updatableOrder{})
-	return s.logStore.Query(q)
+	return s.baseStore.Query(q)
 }
 func (s *updatableStore) Query(qs ...query.Query) (query.Results, error) {
 	rs, err := s.baseQuery(qs...)
@@ -220,19 +226,18 @@ func (s *updatableStore) QueryAll(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *updatableStore) InitPut(key string) error {
-	return s.Put(key, pv.RandBytes(8))
+func (s *updatableStore) initPut() error{
+	return s.Put(s.name, []byte(s.name))
 }
-func (s *updatableStore) LoadCheck() bool {
-	if !s.isInTime(){return true}
+func (s *updatableStore) loadCheck() bool{
+	if !s.inTime{return true}
 
 	rs, err := s.Query(query.Query{
 		KeysOnly: true,
-		Limit:    1,
+		Limit: 1,
 	})
-	if err != nil {
-		return false
-	}
+	if err != nil{return false}
+
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil
 }

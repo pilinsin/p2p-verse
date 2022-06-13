@@ -21,12 +21,13 @@ func BaseTestUpdatableSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 	db0 := newStore(t, hGen, "us/sa", "us", "updatableSignature", baiStr, opts0)
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, hGen, "us/sb", db0.Address(), "updatableSignature", baiStr)
+	db1 := newStore(t, hGen, "us/sb", db0.Address(), "updatableSignature", baiStr)
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
 	time.Sleep(time.Second * 10)
+
 
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
 	checkError(t, err)

@@ -21,29 +21,27 @@ func BaseTestTimeLimit(t *testing.T, hGen pv.HostGenerator) {
 	pid := PubKeyToStr(pub)
 	ac := newAccessController(t, hGen, "tc/c", "ac", baiStr, pid)
 	begin := time.Now()
-	end := begin.Add(time.Second*30)
+	end := begin.Add(time.Second * 30)
 	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac, TimeLimit: end}
 	db0 := newStore(t, hGen, "tc/ta", "us", "updatableSignature", baiStr, opts0)
 	t.Log("db0 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	t.Log("put done")
-
 	time.Sleep(time.Minute)
-	
-	db1 := loadStore(t, hGen, "tc/tb", db0.Address(), "updatableSignature", baiStr)
+
+	db1 := newStore(t, hGen, "tc/tb", db0.Address(), "updatableSignature", baiStr)
 	t.Log("db1 generated")
 
-
 	assertError(t, !db1.isInTime(), "db1.inTime must be false")
+	mustBeEmpty := "db1 is timeout, so db1 can't get any data"
 	rs, err := db1.Query()
-	t.Log("db1.Query:", err)
-	for res := range rs.Next(){
-		t.Log(res.Key, res.Value)
-	}
+	checkError(t, err)
+	resList, err := rs.Rest()
+	checkError(t, err)
+	assertError(t, len(resList) == 0 || err != nil, mustBeEmpty)
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
-	t.Log("db1.Get:", err)
-	assertError(t, err != nil, "db1.Get must return error in the test case", "val:", v10)
+	assertError(t, v10 == nil || err != nil, mustBeEmpty)
 
 	db0.Close()
 	db1.Close()

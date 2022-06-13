@@ -1,8 +1,8 @@
 package pubsub
 
 import (
-	pv "github.com/pilinsin/p2p-verse"
 	"testing"
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 func TestPubSub(t *testing.T) {

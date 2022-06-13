@@ -33,7 +33,7 @@ type ipfsStore struct {
 	cancel   func()
 	dsCancel func()
 	h        host.Host
-	dht *pv.DiscoveryDHT
+	dht      *pv.DiscoveryDHT
 	dStore   ds.Datastore
 	ipfs     *ipfslt.Peer
 }
@@ -69,7 +69,7 @@ func NewIpfsStore(hGen pv.HostGenerator, dirPath string, save bool, bootstraps .
 	if err != nil {
 		return nil, err
 	}
-	if err := dht.Bootstrap("ipfs-keyword", bootstraps); err != nil{
+	if err := dht.Bootstrap("ipfs-keyword", bootstraps); err != nil {
 		return nil, err
 	}
 

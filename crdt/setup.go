@@ -24,8 +24,9 @@ import (
 )
 
 type storeParams struct {
-	dht *pv.DiscoveryDHT
+	dht    *pv.DiscoveryDHT
 	dStore ds.Datastore
+	ps     *p2ppubsub.PubSub
 	dt     *crdt.Datastore
 }
 
@@ -48,11 +49,11 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 
-	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
+	withDiscovery := p2ppubsub.WithDiscovery(dht.Discovery())
+	gossip, err := p2ppubsub.NewGossipSub(ctx, h, withDiscovery)
 	if err != nil {
 		return nil, err
 	}
-
 	valid := validatorFunc(h.ID(), v, store, ds.NewKey(name), ipfs)
 	if err := gossip.RegisterTopicValidator(name, valid); err != nil {
 		return nil, err
@@ -68,11 +69,11 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 	if err != nil {
 		return nil, err
 	}
-	
-	if err := dht.Bootstrap("crdt-keyword", cv.bootstraps); err != nil{
+
+	if err := dht.Bootstrap("crdt-keyword", cv.bootstraps); err != nil {
 		return nil, err
 	}
-	return &storeParams{dht, store, dt}, nil
+	return &storeParams{dht, store, gossip, dt}, nil
 }
 
 func validatorFunc(hid peer.ID, v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator {

@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"time"
 
@@ -17,15 +18,19 @@ import (
 //(NewMyBootstrap) -> NewHost -> NewPubSub -> Discovery ->
 // -> JoinTopic -> Subscribe -> Publish/Get
 
-type IPubSub interface{
+const pubsubKeyword = "pubsub:ejvoaenvaeo;vn;aeo"
+
+type IPubSub interface {
 	Close()
 	AddrInfo() peer.AddrInfo
 	Topics() []string
 	JoinTopic(string) (IRoom, error)
 }
-type api struct {
-	ctx context.Context
+type pubSub struct {
+	hGen pv.HostGenerator
+	bs []peer.AddrInfo
 	h   host.Host
+	dht *pv.DiscoveryDHT
 	ps  *p2ppubsub.PubSub
 }
 
@@ -34,31 +39,36 @@ func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (IPubSub, err
 	if err != nil {
 		return nil, err
 	}
-
-	ctx := context.Background()
-	gossip, err := p2ppubsub.NewGossipSub(ctx, self)
+	dht, err := pv.NewDHT(self)
 	if err != nil {
 		return nil, err
 	}
-	if err := pv.Discovery(self, "pubsub:ejvoaenvaeo;vn;aeo", bootstraps); err != nil {
+
+	ctx := context.Background()
+	withDiscovery := p2ppubsub.WithDiscovery(dht.Discovery())
+	gossip, err := p2ppubsub.NewGossipSub(ctx, self, withDiscovery)
+	if err != nil {
 		return nil, err
-	} else {
-		return &api{ctx, self, gossip}, nil
 	}
+
+	if err := dht.Bootstrap(pubsubKeyword, bootstraps); err != nil {
+		return nil, err
+	}
+	return &pubSub{hGen, bootstraps, self, dht, gossip}, nil
 }
-func (a *api) Close() {
-	a.ps = nil
-	a.h = nil
+func (ps *pubSub) Close() {
+	ps.ps = nil
+	ps.dht.Close()
+	ps.h = nil
 }
-func (a *api) AddrInfo() peer.AddrInfo {
-	return pv.HostToAddrInfo(a.h)
+func (ps *pubSub) AddrInfo() peer.AddrInfo {
+	return pv.HostToAddrInfo(ps.h)
 }
-func (a *api) Topics() []string {
-	return a.ps.GetTopics()
+func (ps *pubSub) Topics() []string {
+	return ps.ps.GetTopics()
 }
 
-
-type IRoom interface{
+type IRoom interface {
 	Close()
 	ListPeers() []peer.ID
 	Publish([]byte) error
@@ -67,13 +77,15 @@ type IRoom interface{
 }
 type room struct {
 	ctx       context.Context
-	topic     *p2ppubsub.Topic
+	cancel    func()
+	ps *pubSub
 	topicName string
+	topic     *p2ppubsub.Topic
 	sub       *p2ppubsub.Subscription
 }
 
-func (a *api) JoinTopic(topicName string) (IRoom, error) {
-	topic, err := a.ps.Join(encodeTopicName(topicName))
+func (ps *pubSub) JoinTopic(topicName string) (IRoom, error) {
+	topic, err := ps.ps.Join(encodeTopicName(topicName))
 	if err != nil {
 		return nil, err
 	}
@@ -82,16 +94,46 @@ func (a *api) JoinTopic(topicName string) (IRoom, error) {
 		return nil, err
 	}
 
-	return &room{a.ctx, topic, topicName, sub}, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	return &room{ctx, cancel, ps, topicName, topic, sub}, nil
 }
-func (r *room) Close() {
+func (r *room) reset() error{
+	N := 50
+	for i := 0; i<N; i++{
+		if len(r.ListPeers()) > 0{return nil}
+		if err := r.baseReset(); err != nil{return err}
+	}
+	return errors.New("connection reset timeout")
+}
+func (r *room) baseReset() error{
+	r.cancel()
 	r.sub.Cancel()
 	r.topic.Close()
+	r.ps.Close()
+
+	ps, err := NewPubSub(r.ps.hGen, r.ps.bs...)
+	if err != nil{return err}
+	r2, err := ps.JoinTopic(r.topicName)
+	if err != nil{return err}
+	room2 := r2.(*room)
+
+	r.ctx = room2.ctx
+	r.cancel = room2.cancel
+	r.ps = room2.ps
+	r.topicName = room2.topicName
+	r.topic = room2.topic
+	r.sub = room2.sub
+	return nil
+}
+func (r *room) Close() {
+	r.cancel()
+	r.sub.Cancel()
+	r.topic.Close()
+	r.ps = nil
 }
 func (r *room) ListPeers() []peer.ID {
 	return r.topic.ListPeers()
 }
-
 func (r *room) Publish(data []byte) error {
 	t, _ := time.Now().UTC().MarshalBinary()
 	mes := &pb.Message{
@@ -102,7 +144,11 @@ func (r *room) Publish(data []byte) error {
 	if err != nil {
 		return err
 	}
-	return r.topic.Publish(r.ctx, mm)
+
+	if err := r.reset(); err != nil{return err}
+		
+	ready := p2ppubsub.WithReadiness(p2ppubsub.MinTopicSize(1))
+	return r.topic.Publish(r.ctx, mm, ready)
 }
 
 type recievedMessage struct {
@@ -124,12 +170,19 @@ func convertMessage(mes *p2ppubsub.Message) (*recievedMessage, error) {
 	return rMes, nil
 }
 func (r *room) Get() (*recievedMessage, error) {
+	if err := r.reset(); err != nil{return nil, err}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	mes, err := r.sub.Next(ctx)
-	if err != nil {
-		return nil, err
+	select {
+	case <-ctx.Done():
+		return convertMessage(mes)
+	default:
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return convertMessage(mes)
@@ -141,11 +194,14 @@ func (r *room) GetAll() ([]*recievedMessage, error) {
 		defer cancel()
 
 		mes, err := r.sub.Next(ctx)
-		if err != nil {
+		select {
+		case <-ctx.Done():
 			if len(mess) > 0 {
 				messSort(mess)
-				return mess, nil
-			} else {
+			}
+			return mess, nil
+		default:
+			if err != nil {
 				return nil, err
 			}
 		}

@@ -21,7 +21,7 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 	db0 := newStore(t, hGen, "ss/sa", "sg", "signature", baiStr, opts0)
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, hGen, "ss/sb", db0.Address(), "signature", baiStr)
+	db1 := newStore(t, hGen, "ss/sb", db0.Address(), "signature", baiStr)
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))

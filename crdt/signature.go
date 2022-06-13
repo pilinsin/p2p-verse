@@ -1,15 +1,14 @@
 package crdtverse
 
 import (
-	"time"
 	"errors"
 	"strings"
+	"time"
 
 	query "github.com/ipfs/go-datastore/query"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	pv "github.com/pilinsin/p2p-verse"
-	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 	proto "google.golang.org/protobuf/proto"
+	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 )
 
 func PubKeyToStr(vk IPubKey) string {
@@ -34,8 +33,9 @@ func StrToPubKey(s string) (IPubKey, error) {
 type signatureValidator struct {
 	iValidator
 }
-func newSignatureValidator(s IStore) iValidator{
-	return &signatureValidator{newLogValidator(s)}
+
+func newSignatureValidator(s IStore) iValidator {
+	return &signatureValidator{newBaseValidator(s)}
 }
 func (v *signatureValidator) Validate(key string, val []byte) bool {
 	if ok := v.iValidator.Validate(key, val); !ok {
@@ -73,14 +73,14 @@ type ISignatureStore interface {
 }
 
 type signatureStore struct {
-	*logStore
+	*baseStore
 	priv IPrivKey
 	pub  IPubKey
 	ac   *accessController
 }
 
 func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (ISignatureStore, error) {
-	st := &logStore{}
+	st := &baseStore{}
 	if err := cv.initCRDT(name, newSignatureValidator(st), st); err != nil {
 		return nil, err
 	}
@@ -95,18 +95,24 @@ func (s *signatureStore) Close() {
 	if s.ac != nil {
 		s.ac.Close()
 	}
-	s.logStore.Close()
+	s.baseStore.Close()
 }
-func (s *signatureStore) Cancel() {
-	s.logStore.Cancel()
-}
+
 func (s *signatureStore) Address() string {
-	name := s.logStore.Address()
+	name := s.baseStore.Address()
 	if s.ac != nil {
 		name += "/" + s.ac.Address()
 	}
 	return name
 }
+
+func (s *signatureStore) Sync() error{
+	if s.ac != nil {
+		if err := s.ac.store.Sync(); err != nil{return err}
+	}
+	return s.baseStore.Sync()
+}
+
 func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
 	if priv == nil || pub == nil {
 		priv, pub, _ = generateKeyPair()
@@ -151,14 +157,14 @@ func (s *signatureStore) Put(key string, val []byte) error {
 	}
 
 	key = sKey + "/" + key
-	return s.logStore.Put(key, msd)
+	return s.baseStore.Put(key, msd)
 }
 func (s *signatureStore) Get(key string) ([]byte, error) {
 	if err := s.verify(key); err != nil {
 		return nil, err
 	}
 
-	msd, err := s.logStore.Get(key)
+	msd, err := s.baseStore.Get(key)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +185,7 @@ func (s *signatureStore) Has(key string) (bool, error) {
 	if err := s.verify(key); err != nil {
 		return false, err
 	}
-	return s.logStore.Has(key)
+	return s.baseStore.Has(key)
 }
 func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 	var q query.Query
@@ -192,8 +198,8 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 		q.Filters = append(q.Filters, acFilter{s.ac})
 	}
 
-	rs, err := s.logStore.Query(q)
-	if err != nil {
+	rs, err := s.baseStore.Query(q)
+	if err != nil{
 		return nil, err
 	}
 	if q.KeysOnly {
@@ -216,12 +222,13 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *signatureStore) InitPut(key string) error {
+func (s *signatureStore) initPut() error{
 	if s.priv == nil {
 		return errors.New("no valid privKey")
 	}
 
-	val := pv.RandBytes(8)
+	val := []byte(s.name)
+
 	sign, err := s.priv.Sign(val)
 	if err != nil {
 		return err
@@ -239,19 +246,19 @@ func (s *signatureStore) InitPut(key string) error {
 	if sKey == "" {
 		return errors.New("invalid pubKey")
 	}
-	key = sKey + "/" + key
-	return s.logStore.Put(key, msd)
+	
+	key := sKey + "/" + s.name
+	return s.baseStore.Put(key, msd)
 }
-func (s *signatureStore) LoadCheck() bool {
-	if !s.isInTime(){return true}
+func (s *signatureStore) loadCheck() bool{
+	if !s.inTime{return true}
 
-	rs, err := s.logStore.Query(query.Query{
+	rs, err := s.baseStore.Query(query.Query{
 		KeysOnly: true,
-		Limit:    1,
+		Limit: 1,
 	})
-	if err != nil {
-		return false
-	}
+	if err != nil{return false}
+
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil
 }

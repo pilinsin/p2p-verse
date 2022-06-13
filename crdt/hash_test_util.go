@@ -20,11 +20,12 @@ func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
 	db0 := newStore(t, hGen, "hs/ha", "hs", "hash", baiStr, opts)
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, hGen, "hs/hb", db0.Address(), "hash", baiStr, opts)
+	db1 := newStore(t, hGen, "hs/hb", db0.Address(), "hash", baiStr, opts)
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	time.Sleep(time.Second * 10)
+
 
 	v10, err := db1.Get("aaa")
 	checkError(t, err)
@@ -34,6 +35,7 @@ func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
 
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 	time.Sleep(time.Second * 10)
+
 
 	v12, err := db1.Get("aaa")
 	checkError(t, err)

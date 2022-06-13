@@ -12,7 +12,6 @@ import (
 	kad "github.com/libp2p/go-libp2p-kad-dht"
 )
 
-
 type HostGenerator func(seeds ...io.Reader) (host.Host, error)
 
 func getSeed(seeds ...io.Reader) io.Reader {

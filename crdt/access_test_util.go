@@ -22,7 +22,8 @@ func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
 	db0 := newStore(t, hGen, "ac/aa", "us", "updatableSignature", baiStr, opts0)
 	t.Log("db0 generated")
 
-	db1 := loadStore(t, hGen, "ac/ab", db0.Address(), "updatableSignature", baiStr)
+
+	db1 := newStore(t, hGen, "ac/ab", db0.Address(), "updatableSignature", baiStr)
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))

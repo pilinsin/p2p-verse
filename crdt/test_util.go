@@ -1,7 +1,6 @@
 package crdtverse
 
 import (
-	"context"
 	"testing"
 
 	pv "github.com/pilinsin/p2p-verse"
@@ -29,13 +28,7 @@ func newStore(t *testing.T, hGen pv.HostGenerator, baseDir, name, mode, bAddrInf
 	checkError(t, err)
 	return db
 }
-func loadStore(t *testing.T, hGen pv.HostGenerator, baseDir, addr, mode, bAddrInfo string, opts ...*StoreOpts) IStore {
-	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, bai)
-	db, err := v.LoadStore(context.Background(), addr, mode, opts...)
-	checkError(t, err)
-	return db
-}
+
 
 func newAccessController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAddrInfo string, keys ...string) *accessController {
 	accesses := make(chan string)
