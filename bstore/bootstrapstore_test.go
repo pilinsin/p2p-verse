@@ -32,7 +32,7 @@ func TestBootstrapStore(t *testing.T) {
 	bs1, err := NewBootstrapStore("dir1")
 	checkError(t, err)
 
-	bs2, err := NewBootstrapStore("dir2", bs1.Address())
+	bs2, err := NewBootstrapStore("dir2")
 	checkError(t, err)
 
 	checkError(t, bs1.Put(stName, bAddr))

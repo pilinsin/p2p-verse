@@ -91,6 +91,7 @@ func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*
 	opt := &StoreOpts{Priv: nil, Pub: pub}
 	st, err := cv.NewStore(ap.GetAddress(), "signature", opt)
 	if err != nil {
+		st.Close()
 		return nil, err
 	}
 	sgst := st.(*signatureStore)

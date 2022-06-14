@@ -46,14 +46,13 @@ type bootstrapStore struct {
 	store crdt.IUpdatableSignatureStore
 }
 
-func NewBootstrapStore(dir string, addrs ...string) (IBootstrapStore, error) {
+func NewBootstrapStore(dir string) (IBootstrapStore, error) {
 	p2pBsAddrInfos := kad.GetDefaultBootstrapPeerAddrInfos()
-	addr := bStoreName
-	if len(addrs) > 0{addr = addrs[0]}
+	addr := crdt.MakeAddress(bStoreName)
 
 	cv := crdt.NewVerse(pv.SampleHost, dir, false, p2pBsAddrInfos...)
 	tmp, err := cv.NewStore(addr, "updatableSignature")
-	if err != nil {
+	if err != nil && tmp == nil {
 		return nil, err
 	}
 	st := tmp.(crdt.IUpdatableSignatureStore)

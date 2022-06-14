@@ -28,6 +28,25 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
+func MakeAddress(name string, timeLimits ...time.Time) string{
+	tl := time.Time{}
+	if len(timeLimits) > 0{tl = timeLimits[0]}
+
+	mt, err := tl.MarshalBinary()
+	if err != nil {
+		return ""
+	}
+	baseAddress := &pb.BaseAddress{
+		Name: name,
+		Time: mt,
+	}
+	m, err := proto.Marshal(baseAddress)
+	if err != nil {
+		return ""
+	}
+	return base64.URLEncoding.EncodeToString(m)
+}
+
 type crdtVerse struct {
 	hGenerator pv.HostGenerator
 	dirPath    string
@@ -83,7 +102,6 @@ func (cv *crdtVerse) initCRDT(name string, v iValidator, st *baseStore) error {
 	st.h = h
 	st.dht = sp.dht
 	st.dStore = sp.dStore
-	st.ps = sp.ps
 	st.dt = sp.dt
 	st.cv = cv
 	return nil
@@ -116,7 +134,7 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 		opt.TimeLimit = tl
 		s, err = cv.loadStore(stName, mode, opt)
 	}
-	if err != nil {
+	if err != nil && s == nil {
 		if opt.Ac != nil {
 			opt.Ac.Close()
 		}
@@ -124,7 +142,7 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 	}
 
 	s.autoSync()
-	return s, nil
+	return s, err
 }
 func parseAddress(addr string) (string, time.Time, error) {
 	if addr == "" {
@@ -173,7 +191,7 @@ func (cv *crdtVerse) newStore(name, mode string, opt *StoreOpts) (IStore, error)
 	return s, nil
 }
 func (cv *crdtVerse) loadStore(name, mode string, opt *StoreOpts) (IStore, error){
-	N := 20
+	N := 3
 	for i := 0; i < N; i++{
 		s, err := cv.selectNewStore(name, mode, opt)
 		if err != nil {
@@ -194,7 +212,14 @@ func (cv *crdtVerse) loadStore(name, mode string, opt *StoreOpts) (IStore, error
 
 		return s, nil
 	}
-	return nil, errors.New("load failed")
+
+	s, err := cv.selectNewStore(name, mode, opt)
+	if err != nil{return nil, err}
+	if err := s.initPut(); err != nil{
+		s.Close()
+		return nil, err
+	}
+	return s, errors.New("load failed")
 }
 func (cv *crdtVerse) loadCheck(s IStore) error{
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -263,27 +288,15 @@ func (s *baseStore) Cancel() {
 	s.dt.Close()
 	s.dStore.Close()
 	s.dht.Close()
-	s.ps = nil
 	s.h = nil
 }
 func (s *baseStore) Close() {
+	if s == nil{return}
 	s.Cancel()
 	s.dsCancel()
 }
 func (s *baseStore) Address() string {
-	mt, err := s.timeLimit.MarshalBinary()
-	if err != nil {
-		return ""
-	}
-	baseAddress := &pb.BaseAddress{
-		Name: s.name,
-		Time: mt,
-	}
-	m, err := proto.Marshal(baseAddress)
-	if err != nil {
-		return ""
-	}
-	return base64.URLEncoding.EncodeToString(m)
+	return MakeAddress(s.name, s.timeLimit)
 }
 func (s *baseStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)

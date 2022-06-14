@@ -26,7 +26,6 @@ import (
 type storeParams struct {
 	dht    *pv.DiscoveryDHT
 	dStore ds.Datastore
-	ps     *p2ppubsub.PubSub
 	dt     *crdt.Datastore
 }
 
@@ -73,7 +72,7 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 	if err := dht.Bootstrap("crdt-keyword", cv.bootstraps); err != nil {
 		return nil, err
 	}
-	return &storeParams{dht, store, gossip, dt}, nil
+	return &storeParams{dht, store, dt}, nil
 }
 
 func validatorFunc(hid peer.ID, v iValidator, dstore ds.Datastore, ns ds.Key, dg crdt.SessionDAGService) p2ppubsub.Validator {

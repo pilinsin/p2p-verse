@@ -25,7 +25,7 @@ func newStore(t *testing.T, hGen pv.HostGenerator, baseDir, name, mode, bAddrInf
 	bai := pv.AddrInfoFromString(bAddrInfo)
 	v := NewVerse(hGen, baseDir, false, bai)
 	db, err := v.NewStore(name, mode, opts...)
-	checkError(t, err)
+	assertError(t, db != nil, "newStore error:", err)
 	return db
 }
 
