@@ -34,7 +34,11 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 	if err != nil {
 		return err
 	}
+	nSuccess := 0
+	maxSuccess := 5
 	for peer := range peersCh {
+		if nSuccess >= maxSuccess{return nil}
+
 		if peer.ID == h.ID() {
 			continue
 		}
@@ -42,11 +46,13 @@ func Discovery(h host.Host, keyword string, bootstraps []peer.AddrInfo) error {
 			continue
 		}
 		if h.Network().Connectedness(peer.ID) == network.Connected {
+			nSuccess++
 			continue
 		}
 		if err := h.Connect(ctx, peer); err != nil {
 			fmt.Println("connection err:", err)
 		}
+		nSuccess++
 	}
 
 	return nil
@@ -57,18 +63,21 @@ func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrIn
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		isSuccess := false
+		nSuccess := 0
+		maxSuccess := 5
 		for _, other := range others {
+			if nSuccess >= maxSuccess{break}
 			if self.Network().Connectedness(other.ID) == network.Connected {
-				return
+				nSuccess++
+				continue
 			}
 			if err := self.Connect(ctx, other); err == nil {
-				isSuccess = true
+				nSuccess++
 			} else {
 				fmt.Println("connection err:", err)
 			}
 		}
-		if !isSuccess {
+		if nSuccess == 0 {
 			cbErr = errors.New("no bootstraps are connected")
 		}
 	}()
@@ -115,7 +124,12 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 	if err != nil {
 		return err
 	}
+
+	nSuccess := 0
+	maxSuccess := 5
 	for peer := range peersCh {
+		if nSuccess >= maxSuccess{return nil}
+
 		if peer.ID == d.h.ID() {
 			continue
 		}
@@ -123,11 +137,13 @@ func (d *DiscoveryDHT) Bootstrap(keyword string, bootstraps []peer.AddrInfo) err
 			continue
 		}
 		if d.h.Network().Connectedness(peer.ID) == network.Connected {
+			nSuccess++
 			continue
 		}
 		if err := d.h.Connect(d.ctx, peer); err != nil {
 			fmt.Println("connection err:", err)
 		}
+		nSuccess++
 	}
 
 	return nil
