@@ -5,13 +5,9 @@ import (
 	"time"
 
 	query "github.com/ipfs/go-datastore/query"
-	proto "google.golang.org/protobuf/proto"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	proto "google.golang.org/protobuf/proto"
 )
-
-type updatableSignatureValidator struct {
-	iValidator
-}
 
 func newUpdatableSignatureValidator(s IStore) iValidator {
 	return &updatableValidator{newSignatureValidator(s)}
@@ -67,9 +63,11 @@ func (s *updatableSignatureStore) Address() string {
 	return name
 }
 
-func (s *updatableSignatureStore) Sync() error{
+func (s *updatableSignatureStore) Sync() error {
 	if s.ac != nil {
-		if err := s.ac.store.Sync(); err != nil{return err}
+		if err := s.ac.store.Sync(); err != nil {
+			return err
+		}
 	}
 	return s.updatableStore.Sync()
 }
@@ -231,7 +229,7 @@ func (s *updatableSignatureStore) QueryAll(qs ...query.Query) (query.Results, er
 	return s.baseQueryAll(q)
 }
 
-func (s *updatableSignatureStore) initPut() error{
+func (s *updatableSignatureStore) initPut() error {
 	if s.priv == nil {
 		return errors.New("no valid privKey")
 	}
@@ -258,14 +256,18 @@ func (s *updatableSignatureStore) initPut() error{
 	key := sKey + "/" + s.name
 	return s.updatableStore.Put(key, msd)
 }
-func (s *updatableSignatureStore) loadCheck() bool{
-	if !s.inTime{return true}
+func (s *updatableSignatureStore) loadCheck() bool {
+	if !s.inTime {
+		return true
+	}
 
 	rs, err := s.updatableStore.Query(query.Query{
 		KeysOnly: true,
-		Limit: 1,
+		Limit:    1,
 	})
-	if err != nil{return false}
+	if err != nil {
+		return false
+	}
 
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil

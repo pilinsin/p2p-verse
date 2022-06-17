@@ -18,7 +18,6 @@ import (
 	crdt "github.com/ipfs/go-ds-crdt"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	p2ppubsub "github.com/libp2p/go-libp2p-pubsub"
 	pv "github.com/pilinsin/p2p-verse"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
 )
@@ -28,9 +27,11 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
-func MakeAddress(name string, timeLimits ...time.Time) string{
+func MakeAddress(name string, timeLimits ...time.Time) string {
 	tl := time.Time{}
-	if len(timeLimits) > 0{tl = timeLimits[0]}
+	if len(timeLimits) > 0 {
+		tl = timeLimits[0]
+	}
 
 	mt, err := tl.MarshalBinary()
 	if err != nil {
@@ -68,11 +69,11 @@ type baseStore struct {
 	h         host.Host
 	dht       *pv.DiscoveryDHT
 	dStore    ds.Datastore
-	ps        *p2ppubsub.PubSub
 	dt        *crdt.Datastore
 
 	cv *crdtVerse
 }
+
 func (cv *crdtVerse) initCRDT(name string, v iValidator, st *baseStore) error {
 	h, err := cv.hGenerator()
 	if err != nil {
@@ -91,6 +92,7 @@ func (cv *crdtVerse) initCRDT(name string, v iValidator, st *baseStore) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	sp, err := cv.setupStore(ctx, h, name, v)
 	if err != nil {
+		cancel()
 		return err
 	}
 
@@ -130,7 +132,7 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 	stName, tl, err := parseAddress(addrs[0])
 	if err != nil {
 		s, err = cv.newStore(name, mode, opt)
-	}else{
+	} else {
 		opt.TimeLimit = tl
 		s, err = cv.loadStore(stName, mode, opt)
 	}
@@ -178,32 +180,32 @@ func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (ISto
 		return cv.NewLogStore(name, opts...)
 	}
 }
-func (cv *crdtVerse) newStore(name, mode string, opt *StoreOpts) (IStore, error){
+func (cv *crdtVerse) newStore(name, mode string, opt *StoreOpts) (IStore, error) {
 	s, err := cv.selectNewStore(name, mode, opt)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.initPut(); err != nil{
+	if err := s.initPut(); err != nil {
 		s.Close()
 		return nil, err
 	}
 
 	return s, nil
 }
-func (cv *crdtVerse) loadStore(name, mode string, opt *StoreOpts) (IStore, error){
+func (cv *crdtVerse) loadStore(name, mode string, opt *StoreOpts) (IStore, error) {
 	N := 3
-	for i := 0; i < N; i++{
+	for i := 0; i < N; i++ {
 		s, err := cv.selectNewStore(name, mode, opt)
 		if err != nil {
-			if strings.HasPrefix(err.Error(), dirLock){
+			if strings.HasPrefix(err.Error(), dirLock) {
 				fmt.Println("dirLock error, now reloading...")
 				continue
 			}
 			return nil, err
 		}
 
-		if err := cv.loadCheck(s); err != nil{
-			if strings.HasPrefix(err.Error(), timeout){
+		if err := cv.loadCheck(s); err != nil {
+			if strings.HasPrefix(err.Error(), timeout) {
 				fmt.Println("timeout error, now reloading...")
 				continue
 			}
@@ -214,33 +216,36 @@ func (cv *crdtVerse) loadStore(name, mode string, opt *StoreOpts) (IStore, error
 	}
 
 	s, err := cv.selectNewStore(name, mode, opt)
-	if err != nil{return nil, err}
-	if err := s.initPut(); err != nil{
+	if err != nil {
+		return nil, err
+	}
+	if err := s.initPut(); err != nil {
 		s.Close()
 		return nil, err
 	}
 	return s, errors.New("load failed")
 }
-func (cv *crdtVerse) loadCheck(s IStore) error{
+func (cv *crdtVerse) loadCheck(s IStore) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	defer cancel()
-	for{
-		select{
+	for {
+		select {
 		case <-ctx.Done():
 			s.Cancel()
 			return errors.New("load error: sync timeout (store)")
 		case <-ticker.C:
-			if err := s.Sync(); err != nil{
+			if err := s.Sync(); err != nil {
 				s.Close()
 				return err
 			}
-			if ok := s.loadCheck(); ok{return nil}
+			if ok := s.loadCheck(); ok {
+				return nil
+			}
 		}
 	}
 }
-
 
 type iValidator interface {
 	Validate(string, []byte) bool
@@ -282,7 +287,6 @@ type StoreOpts struct {
 	TimeLimit time.Time
 }
 
-
 func (s *baseStore) Cancel() {
 	s.cancel()
 	s.dt.Close()
@@ -291,7 +295,9 @@ func (s *baseStore) Cancel() {
 	s.h = nil
 }
 func (s *baseStore) Close() {
-	if s == nil{return}
+	if s == nil {
+		return
+	}
 	s.Cancel()
 	s.dsCancel()
 }
@@ -314,7 +320,7 @@ func (s *baseStore) setTimeLimit() {
 		return
 	}
 	go func() {
-		ticker := time.NewTicker(s.timeLimit.Sub(time.Now()))
+		ticker := time.NewTicker(time.Until(s.timeLimit))
 		defer ticker.Stop()
 		select {
 		case <-s.ctx.Done():
@@ -332,20 +338,28 @@ func (s *baseStore) Sync() error {
 	}
 	return s.dt.Sync(s.ctx, ds.NewKey("/"))
 }
-func (s *baseStore) autoSync(){
-	if !s.inTime{return}
-	if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil{return}
+func (s *baseStore) autoSync() {
+	if !s.inTime {
+		return
+	}
+	if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil {
+		return
+	}
 
-	go func(){
-		ticker := time.NewTicker(time.Second*5)
+	go func() {
+		ticker := time.NewTicker(time.Second * 5)
 		defer ticker.Stop()
-		for{
-			select{
+		for {
+			select {
 			case <-s.ctx.Done():
 				return
 			case <-ticker.C:
-				if !s.inTime{return}
-				if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil{return}
+				if !s.inTime {
+					return
+				}
+				if err := s.dt.Sync(s.ctx, ds.NewKey("/")); err != nil {
+					return
+				}
 			}
 		}
 	}()
@@ -367,13 +381,13 @@ func (s *baseStore) Get(key string) ([]byte, error) {
 	}
 	return b, nil
 }
-func (s *baseStore) GetSize(key string) (int, error) {	
+func (s *baseStore) GetSize(key string) (int, error) {
 	return s.dt.GetSize(s.ctx, ds.NewKey(key))
 }
 func (s *baseStore) Has(key string) (bool, error) {
 	return s.dt.Has(s.ctx, ds.NewKey(key))
 }
-func (s *baseStore) Query(qs ...query.Query) (query.Results, error) {	
+func (s *baseStore) Query(qs ...query.Query) (query.Results, error) {
 	var q query.Query
 	if len(qs) == 0 {
 		q = query.Query{}
@@ -383,17 +397,21 @@ func (s *baseStore) Query(qs ...query.Query) (query.Results, error) {
 	return s.dt.Query(s.ctx, q)
 }
 
-func (s *baseStore) initPut() error{
+func (s *baseStore) initPut() error {
 	return s.Put(s.name, []byte(s.name))
 }
-func (s *baseStore) loadCheck() bool{
-	if !s.inTime{return true}
+func (s *baseStore) loadCheck() bool {
+	if !s.inTime {
+		return true
+	}
 
 	rs, err := s.Query(query.Query{
 		KeysOnly: true,
-		Limit: 1,
+		Limit:    1,
 	})
-	if err != nil{return false}
+	if err != nil {
+		return false
+	}
 
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil

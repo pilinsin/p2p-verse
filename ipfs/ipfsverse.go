@@ -67,9 +67,11 @@ func NewIpfsStore(hGen pv.HostGenerator, dirPath string, save bool, bootstraps .
 	ctx, cancel := context.WithCancel(context.Background())
 	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	if err := dht.Bootstrap("ipfs-keyword", bootstraps); err != nil {
+		cancel()
 		return nil, err
 	}
 

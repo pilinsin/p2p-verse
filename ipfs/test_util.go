@@ -1,8 +1,9 @@
 package ipfsverse
 
 import (
-	pv "github.com/pilinsin/p2p-verse"
 	"testing"
+
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 func checkError(t *testing.T, err error, args ...interface{}) {
@@ -12,6 +13,11 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 		copy(args0[1:], args)
 
 		t.Fatal(args0...)
+	}
+}
+func assertError(t *testing.T, cond bool, args ...interface{}) {
+	if !cond {
+		t.Fatal(args...)
 	}
 }
 
@@ -42,6 +48,13 @@ func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator) {
 	v, err := ipfs2.Get(c)
 	checkError(t, err)
 	t.Log("get,", string(v))
+
+	cg, err := NewCidGetter()
+	checkError(t, err)
+	defer cg.Close()
+	c2, err := cg.Get([]byte("meow meow ^.^"))
+	checkError(t, err)
+	assertError(t, c == c2, "different cid for the same []byte")
 
 	t.Log("finished")
 }
