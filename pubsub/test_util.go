@@ -4,8 +4,9 @@ import (
 	"testing"
 
 	"fmt"
-	pv "github.com/pilinsin/p2p-verse"
 	"time"
+
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 func checkError(t *testing.T, err error, args ...interface{}) {
@@ -36,7 +37,9 @@ func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
 		defer tpc0.Close()
 		itr := 0
 		for {
-			if len(tpc0.ListPeers()) == 0{continue}
+			if len(tpc0.ListPeers()) == 0 {
+				continue
+			}
 
 			mess, err := tpc0.GetAll()
 			t.Log(itr, err)
@@ -53,21 +56,20 @@ func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
 		}
 	}()
 
-
 	ps1, err11 := NewPubSub(hGen, bAddrInfo)
 	checkError(t, err11)
 	defer ps1.Close()
 	tpc1, err12 := ps1.JoinTopic("test topic")
 	checkError(t, err12)
 	defer tpc1.Close()
-	<-time.Tick(time.Second*2)
-	
+	time.Sleep(time.Second * 2)
+
 	t.Log("topic peers list  :", tpc1.ListPeers())
 	for i := 0; i < N; i++ {
 		err := tpc1.Publish([]byte(fmt.Sprintln("message ", i)))
 		checkError(t, err)
 	}
 
-	<-time.Tick(time.Second * 10)
+	time.Sleep(time.Second * 10)
 	t.Log("finished")
 }

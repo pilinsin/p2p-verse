@@ -28,10 +28,10 @@ type IPubSub interface {
 }
 type pubSub struct {
 	hGen pv.HostGenerator
-	bs []peer.AddrInfo
-	h   host.Host
-	dht *pv.DiscoveryDHT
-	ps  *p2ppubsub.PubSub
+	bs   []peer.AddrInfo
+	h    host.Host
+	dht  *pv.DiscoveryDHT
+	ps   *p2ppubsub.PubSub
 }
 
 func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (IPubSub, error) {
@@ -59,7 +59,7 @@ func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (IPubSub, err
 func (ps *pubSub) Close() {
 	ps.ps = nil
 	ps.dht.Close()
-	ps.h = nil
+	ps.h.Close()
 }
 func (ps *pubSub) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(ps.h)
@@ -78,7 +78,7 @@ type IRoom interface {
 type room struct {
 	ctx       context.Context
 	cancel    func()
-	ps *pubSub
+	ps        *pubSub
 	topicName string
 	topic     *p2ppubsub.Topic
 	sub       *p2ppubsub.Subscription
@@ -97,24 +97,32 @@ func (ps *pubSub) JoinTopic(topicName string) (IRoom, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &room{ctx, cancel, ps, topicName, topic, sub}, nil
 }
-func (r *room) reset() error{
+func (r *room) reset() error {
 	N := 50
-	for i := 0; i<N; i++{
-		if len(r.ListPeers()) > 0{return nil}
-		if err := r.baseReset(); err != nil{return err}
+	for i := 0; i < N; i++ {
+		if len(r.ListPeers()) > 0 {
+			return nil
+		}
+		if err := r.baseReset(); err != nil {
+			return err
+		}
 	}
 	return errors.New("connection reset timeout")
 }
-func (r *room) baseReset() error{
+func (r *room) baseReset() error {
 	r.cancel()
 	r.sub.Cancel()
 	r.topic.Close()
 	r.ps.Close()
 
 	ps, err := NewPubSub(r.ps.hGen, r.ps.bs...)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	r2, err := ps.JoinTopic(r.topicName)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	room2 := r2.(*room)
 
 	r.ctx = room2.ctx
@@ -145,8 +153,10 @@ func (r *room) Publish(data []byte) error {
 		return err
 	}
 
-	if err := r.reset(); err != nil{return err}
-		
+	if err := r.reset(); err != nil {
+		return err
+	}
+
 	ready := p2ppubsub.WithReadiness(p2ppubsub.MinTopicSize(1))
 	return r.topic.Publish(r.ctx, mm, ready)
 }
@@ -170,7 +180,9 @@ func convertMessage(mes *p2ppubsub.Message) (*recievedMessage, error) {
 	return rMes, nil
 }
 func (r *room) Get() (*recievedMessage, error) {
-	if err := r.reset(); err != nil{return nil, err}
+	if err := r.reset(); err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
