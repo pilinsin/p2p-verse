@@ -289,15 +289,10 @@ type StoreOpts struct {
 
 func (s *baseStore) Cancel() {
 	s.cancel()
-	fmt.Println("canceled")
 	s.dt.Close()
-	fmt.Println("dt closed")
 	s.dStore.Close()
-	fmt.Println("dStore closed")
 	s.dht.Close()
-	fmt.Println("dht closed")
 	s.h.Close()
-	fmt.Println("h closed")
 }
 func (s *baseStore) Close() {
 	if s == nil {
