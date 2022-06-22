@@ -292,7 +292,7 @@ func (s *baseStore) Cancel() {
 	s.dt.Close()
 	s.dStore.Close()
 	s.dht.Close()
-	s.h.Close()
+	s.h = nil
 }
 func (s *baseStore) Close() {
 	if s == nil {

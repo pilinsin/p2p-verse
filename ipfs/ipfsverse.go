@@ -82,7 +82,7 @@ func (s *ipfsStore) Close() {
 	s.dStore.Close()
 	s.dsCancel()
 	s.dht.Close()
-	s.h.Close()
+	s.h = nil
 }
 
 func (s *ipfsStore) AddrInfo() peer.AddrInfo {

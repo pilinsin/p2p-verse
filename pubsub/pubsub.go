@@ -1,7 +1,6 @@
 package pubsub
 
 import (
-	"fmt"
 	"context"
 	"errors"
 	"sort"
@@ -60,8 +59,7 @@ func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (IPubSub, err
 func (ps *pubSub) Close() {
 	ps.ps = nil
 	ps.dht.Close()
-	err := ps.h.Close()
-	fmt.Println(err)
+	ps.h = nil
 }
 func (ps *pubSub) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(ps.h)

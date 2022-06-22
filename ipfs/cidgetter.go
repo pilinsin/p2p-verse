@@ -39,7 +39,7 @@ func NewCidGetter() (*cidGetter, error) {
 }
 func (cg *cidGetter) Close() {
 	cg.dht.Close()
-	cg.h.Close()
+	cg.h = nil
 }
 
 func (cg *cidGetter) GetReader(r io.Reader) (string, error) {
