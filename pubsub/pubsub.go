@@ -57,8 +57,8 @@ func NewPubSub(hGen pv.HostGenerator, bootstraps ...peer.AddrInfo) (IPubSub, err
 	return &pubSub{hGen, bootstraps, self, dht, gossip}, nil
 }
 func (ps *pubSub) Close() {
-	ps.h.Close()
 	ps.dht.Close()
+	ps.h.Close()
 	ps.ps = nil
 }
 func (ps *pubSub) AddrInfo() peer.AddrInfo {

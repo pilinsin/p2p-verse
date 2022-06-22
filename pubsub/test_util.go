@@ -30,11 +30,11 @@ func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
 	N := 10
 	ps0, err01 := NewPubSub(hGen, bAddrInfo)
 	checkError(t, err01)
-	defer ps0.Close()
 	tpc0, err02 := ps0.JoinTopic("test topic")
 	checkError(t, err02)
 	go func() {
 		defer tpc0.Close()
+		defer ps0.Close()
 		itr := 0
 		for {
 			if len(tpc0.ListPeers()) == 0 {
@@ -58,10 +58,10 @@ func BaseTestPubSub(t *testing.T, hGen pv.HostGenerator) {
 
 	ps1, err11 := NewPubSub(hGen, bAddrInfo)
 	checkError(t, err11)
-	defer ps1.Close()
 	tpc1, err12 := ps1.JoinTopic("test topic")
 	checkError(t, err12)
 	defer tpc1.Close()
+	defer ps1.Close()
 	time.Sleep(time.Second * 2)
 
 	t.Log("topic peers list  :", tpc1.ListPeers())
