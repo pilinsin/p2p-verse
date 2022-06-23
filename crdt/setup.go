@@ -43,6 +43,10 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 
+	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
 	if err != nil {
@@ -53,11 +57,6 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 	psbc, err := crdt.NewPubSubBroadcaster(ctx, gossip, name)
-	if err != nil {
-		return nil, err
-	}
-
-	ipfs, err := ipfslt.New(ctx, store, h, dht.DHT(), nil)
 	if err != nil {
 		return nil, err
 	}
