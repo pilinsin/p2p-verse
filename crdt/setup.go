@@ -48,8 +48,7 @@ func (cv *crdtVerse) setupStore(ctx context.Context, h host.Host, name string, v
 		return nil, err
 	}
 
-	withDiscovery := p2ppubsub.WithDiscovery(dht.Discovery())
-	gossip, err := p2ppubsub.NewGossipSub(ctx, h, withDiscovery)
+	gossip, err := p2ppubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
 	}
