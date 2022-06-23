@@ -70,7 +70,7 @@ func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrIn
 				fmt.Println("connection err:", err)
 			}
 		}
-		if isSuccess {
+		if !isSuccess {
 			cbErr = errors.New("no bootstraps are connected")
 		}
 	}()
