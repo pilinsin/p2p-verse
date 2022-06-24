@@ -59,7 +59,6 @@ func connectBootstraps(ctx context.Context, self host.Host, others []peer.AddrIn
 		defer wg.Done()
 		isSuccess := false
 		for _, other := range others {
-			if nSuccess >= maxSuccess{break}
 			if self.Network().Connectedness(other.ID) == network.Connected {
 				isSuccess = true
 				continue
