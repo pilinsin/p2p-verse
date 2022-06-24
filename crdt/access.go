@@ -287,7 +287,7 @@ func (s *accessStore) Query(qs ...query.Query) (query.Results, error) {
 }
 func (s *accessStore) QueryAll(qs ...query.Query) (query.Results, error) {
 	if us, ok := s.IStore.(IUpdatableSignatureStore); ok {
-		rs, err := us.QueryAll(qs...)
+		rs, err := us.QueryAll()
 		if err != nil {
 			return nil, err
 		}
