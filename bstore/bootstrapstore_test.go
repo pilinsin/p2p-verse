@@ -1,9 +1,10 @@
 package bootstrapstore
 
 import (
+	"os"
 	"testing"
 	"time"
-	"os"
+
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -14,11 +15,6 @@ func checkError(t *testing.T, err error, args ...interface{}) {
 		copy(args0[1:], args)
 
 		t.Fatal(args0...)
-	}
-}
-func assertError(t *testing.T, cond bool, args ...interface{}) {
-	if !cond {
-		t.Fatal(args...)
 	}
 }
 
@@ -36,7 +32,7 @@ func TestBootstrapStore(t *testing.T) {
 	checkError(t, err)
 
 	checkError(t, bs1.Put(stName, bAddr))
-	time.Sleep(time.Second*10)
+	time.Sleep(time.Second * 10)
 
 	ais1, err := bs1.Get(stName)
 	checkError(t, err)

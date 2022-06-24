@@ -3,6 +3,7 @@ package crdtverse
 import (
 	"testing"
 
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	pv "github.com/pilinsin/p2p-verse"
 )
 
@@ -29,8 +30,7 @@ func newStore(t *testing.T, hGen pv.HostGenerator, baseDir, name, mode, bAddrInf
 	return db
 }
 
-
-func newAccessController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAddrInfo string, keys ...string) *accessController {
+func newAccessStore(t *testing.T, st IStore, keys ...string) IAccessStore {
 	accesses := make(chan string)
 	go func() {
 		defer close(accesses)
@@ -39,9 +39,8 @@ func newAccessController(t *testing.T, hGen pv.HostGenerator, baseDir, name, bAd
 		}
 	}()
 
-	bai := pv.AddrInfoFromString(bAddrInfo)
-	v := NewVerse(hGen, baseDir, false, bai)
-	ac, err := v.NewAccessController(name, accesses)
+	v := NewVerse(nil, "", false, peer.AddrInfo{})
+	ac, err := v.NewAccessStore(st, accesses)
 	checkError(t, err)
 	return ac
 }

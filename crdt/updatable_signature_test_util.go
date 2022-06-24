@@ -28,7 +28,6 @@ func BaseTestUpdatableSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 	t.Log("put done")
 	time.Sleep(time.Second * 10)
 
-
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
 	checkError(t, err)
 	t.Log(string(v10))

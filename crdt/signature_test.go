@@ -1,8 +1,9 @@
 package crdtverse
 
 import (
-	pv "github.com/pilinsin/p2p-verse"
 	"testing"
+
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 func TestSignatureStore(t *testing.T) {

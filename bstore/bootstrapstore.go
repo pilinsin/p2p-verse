@@ -4,6 +4,7 @@ import (
 	//"context"
 	"encoding/base64"
 	"errors"
+
 	//"fmt"
 	//"strings"
 	//"time"
@@ -15,11 +16,6 @@ import (
 
 	pv "github.com/pilinsin/p2p-verse"
 	crdt "github.com/pilinsin/p2p-verse/crdt"
-)
-
-const (
-	timeout string = "load error: sync timeout"
-	dirLock string = "Cannot acquire directory lock on"
 )
 
 var bStoreName string
@@ -48,7 +44,7 @@ type bootstrapStore struct {
 
 func NewBootstrapStore(dir string) (IBootstrapStore, error) {
 	p2pBsAddrInfos := kad.GetDefaultBootstrapPeerAddrInfos()
-	addr := crdt.MakeAddress(bStoreName)
+	addr := crdt.MakeAddress(bStoreName, "")
 
 	cv := crdt.NewVerse(pv.SampleHost, dir, false, p2pBsAddrInfos...)
 	tmp, err := cv.NewStore(addr, "updatableSignature")
@@ -62,7 +58,7 @@ func NewBootstrapStore(dir string) (IBootstrapStore, error) {
 func (bs *bootstrapStore) Close() {
 	bs.store.Close()
 }
-func (bs *bootstrapStore) Address() string{
+func (bs *bootstrapStore) Address() string {
 	return bs.store.Address()
 }
 func (bs *bootstrapStore) Put(stAddr, bAddr string) error {
@@ -82,7 +78,7 @@ func (bs *bootstrapStore) Put(stAddr, bAddr string) error {
 	return bs.store.Put(key, val)
 }
 func (bs *bootstrapStore) Get(stAddr string) ([]peer.AddrInfo, error) {
-	kef := crdt.KeyExistFilter{stAddrToKey(stAddr)}
+	kef := crdt.KeyExistFilter{Key: stAddrToKey(stAddr)}
 	rs, err := bs.store.Query(query.Query{
 		Filters: []query.Filter{kef},
 	})

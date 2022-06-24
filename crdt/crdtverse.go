@@ -27,7 +27,7 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
-func MakeAddress(name string, timeLimits ...time.Time) string {
+func MakeAddress(name, pid string, timeLimits ...time.Time) string {
 	tl := time.Time{}
 	if len(timeLimits) > 0 {
 		tl = timeLimits[0]
@@ -39,6 +39,7 @@ func MakeAddress(name string, timeLimits ...time.Time) string {
 	}
 	baseAddress := &pb.BaseAddress{
 		Name: name,
+		Pid:  pid,
 		Time: mt,
 	}
 	m, err := proto.Marshal(baseAddress)
@@ -110,26 +111,13 @@ func (cv *crdtVerse) initCRDT(name string, v iValidator, st *baseStore) error {
 }
 
 func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, error) {
-	addrs := strings.Split(strings.TrimPrefix(name, "/"), "/")
-	if len(addrs) == 0 {
-		return nil, errors.New("invalid addr")
-	}
-
 	opt := &StoreOpts{}
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
 
-	if len(addrs) > 1 {
-		ac, err := cv.loadAccessController(context.Background(), addrs[1])
-		if err != nil {
-			return nil, err
-		}
-		opt.Ac = ac
-	}
-
 	var s IStore
-	stName, tl, err := parseAddress(addrs[0])
+	stName, pid, tl, err := parseAddress(name)
 	if err != nil {
 		s, err = cv.newStore(name, mode, opt)
 	} else {
@@ -137,34 +125,38 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 		s, err = cv.loadStore(stName, mode, opt)
 	}
 	if err != nil && s == nil {
-		if opt.Ac != nil {
-			opt.Ac.Close()
-		}
+		return nil, err
+	}
+
+	if pid != "" {
+		s, err = cv.loadAccessStore(s, pid, opt)
+	}
+	if err != nil {
 		return nil, err
 	}
 
 	s.autoSync()
 	return s, err
 }
-func parseAddress(addr string) (string, time.Time, error) {
+func parseAddress(addr string) (string, string, time.Time, error) {
 	if addr == "" {
-		return "", time.Time{}, errors.New("invalid address")
+		return "", "", time.Time{}, errors.New("invalid address")
 	}
 	m, err := base64.URLEncoding.DecodeString(addr)
 	if err != nil {
-		return "", time.Time{}, err
+		return "", "", time.Time{}, err
 	}
 
 	baseAddress := &pb.BaseAddress{}
 	if err := proto.Unmarshal(m, baseAddress); err != nil {
-		return "", time.Time{}, err
+		return "", "", time.Time{}, err
 	}
 
 	tl := time.Time{}
 	if err := tl.UnmarshalBinary(baseAddress.GetTime()); err != nil {
-		return "", time.Time{}, err
+		return "", "", time.Time{}, err
 	}
-	return baseAddress.GetName(), tl, nil
+	return baseAddress.GetName(), baseAddress.GetPid(), tl, nil
 }
 func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (IStore, error) {
 	switch mode {
@@ -283,7 +275,6 @@ type StoreOpts struct {
 	Salt      []byte
 	Priv      IPrivKey
 	Pub       IPubKey
-	Ac        *accessController
 	TimeLimit time.Time
 }
 
@@ -302,7 +293,7 @@ func (s *baseStore) Close() {
 	s.dsCancel()
 }
 func (s *baseStore) Address() string {
-	return MakeAddress(s.name, s.timeLimit)
+	return MakeAddress(s.name, "", s.timeLimit)
 }
 func (s *baseStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)

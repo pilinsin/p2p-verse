@@ -2,8 +2,9 @@ package crdtverse
 
 import (
 	"bytes"
-	query "github.com/ipfs/go-datastore/query"
 	"strings"
+
+	query "github.com/ipfs/go-datastore/query"
 )
 
 //data key: (<pid>)/<category>/(<tKey>)

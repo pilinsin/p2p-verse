@@ -1,6 +1,6 @@
 package crdtverse
 
-import(
+import (
 	"time"
 )
 
@@ -11,9 +11,10 @@ func getLogOpts(opts ...*StoreOpts) time.Time {
 	return opts[0].TimeLimit
 }
 
-type logStore struct{
+type logStore struct {
 	*baseStore
 }
+
 func (cv *crdtVerse) NewLogStore(name string, opts ...*StoreOpts) (IStore, error) {
 	st := &baseStore{}
 	if err := cv.initCRDT(name, newBaseValidator(st), st); err != nil {

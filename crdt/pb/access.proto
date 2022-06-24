@@ -2,8 +2,7 @@ syntax = "proto3";
 package pb;
 option go_package = "./";
 
-message AccessParams{
-	string 	pid		= 1;
-	string 	address	= 2;
-	bytes	salt	= 3;
+message AccessKey{
+	string 	masterKey	= 1;
+	string 	access		= 2;
 }

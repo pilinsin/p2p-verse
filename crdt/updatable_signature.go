@@ -13,15 +13,15 @@ func newUpdatableSignatureValidator(s IStore) iValidator {
 	return &updatableValidator{newSignatureValidator(s)}
 }
 
-func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, time.Time) {
+func getUpdatableSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, time.Time) {
 	if len(opts) == 0 {
 		priv, pub, _ := generateKeyPair()
-		return priv, pub, nil, time.Time{}
+		return priv, pub, time.Time{}
 	}
 	if opts[0].Pub == nil {
 		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
 	}
-	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].TimeLimit
+	return opts[0].Priv, opts[0].Pub, opts[0].TimeLimit
 }
 
 type IUpdatableSignatureStore interface {
@@ -33,7 +33,6 @@ type updatableSignatureStore struct {
 	*updatableStore
 	priv IPrivKey
 	pub  IPubKey
-	ac   *accessController
 }
 
 func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts) (IUpdatableSignatureStore, error) {
@@ -42,34 +41,10 @@ func (cv *crdtVerse) NewUpdatableSignatureStore(name string, opts ...*StoreOpts)
 		return nil, err
 	}
 
-	priv, pub, ac, tl := getUpdatableSignatureOpts(opts...)
+	priv, pub, tl := getUpdatableSignatureOpts(opts...)
 	st.timeLimit = tl
 	st.setTimeLimit()
-	return &updatableSignatureStore{&updatableStore{st}, priv, pub, ac}, nil
-}
-
-func (s *updatableSignatureStore) Close() {
-	if s.ac != nil {
-		s.ac.Close()
-	}
-	s.updatableStore.Close()
-}
-
-func (s *updatableSignatureStore) Address() string {
-	name := s.updatableStore.Address()
-	if s.ac != nil {
-		name += "/" + s.ac.Address()
-	}
-	return name
-}
-
-func (s *updatableSignatureStore) Sync() error {
-	if s.ac != nil {
-		if err := s.ac.store.Sync(); err != nil {
-			return err
-		}
-	}
-	return s.updatableStore.Sync()
+	return &updatableSignatureStore{&updatableStore{st}, priv, pub}, nil
 }
 
 func (s *updatableSignatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
@@ -79,14 +54,13 @@ func (s *updatableSignatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
 	s.priv = priv
 	s.pub = pub
 }
-func (s *updatableSignatureStore) verify(key string) error {
-	if s.ac != nil {
-		ok, err := s.ac.Has(key)
-		if !ok || err != nil {
-			return errors.New("permission error")
-		}
+
+func (s *updatableSignatureStore) putKey(key string) string {
+	sKey := PubKeyToStr(s.pub)
+	if sKey == "" {
+		return ""
 	}
-	return nil
+	return sKey + "/" + key
 }
 
 func (s *updatableSignatureStore) Put(key string, val []byte) error {
@@ -111,18 +85,11 @@ func (s *updatableSignatureStore) Put(key string, val []byte) error {
 	if sKey == "" {
 		return errors.New("invalid pubKey")
 	}
-	if err := s.verify(sKey); err != nil {
-		return err
-	}
 
 	key = sKey + "/" + key
 	return s.updatableStore.Put(key, msd)
 }
 func (s *updatableSignatureStore) Get(key string) ([]byte, error) {
-	if err := s.verify(key); err != nil {
-		return nil, err
-	}
-
 	msd, err := s.updatableStore.Get(key)
 	if err != nil {
 		return nil, err
@@ -134,28 +101,14 @@ func (s *updatableSignatureStore) Get(key string) ([]byte, error) {
 	return sd.GetValue(), nil
 }
 func (s *updatableSignatureStore) GetSize(key string) (int, error) {
-	if err := s.verify(key); err != nil {
-		return -1, err
-	}
-
 	val, err := s.Get(key)
 	if err != nil {
 		return -1, err
 	}
 	return len(val), nil
 }
-func (s *updatableSignatureStore) Has(key string) (bool, error) {
-	if err := s.verify(key); err != nil {
-		return false, err
-	}
 
-	return s.updatableStore.Has(key)
-}
 func (s *updatableSignatureStore) baseQuery(q query.Query) (query.Results, error) {
-	if s.ac != nil {
-		q.Filters = append(q.Filters, acFilter{s.ac})
-	}
-
 	rs, err := s.updatableStore.Query(q)
 	if err != nil {
 		return nil, err
@@ -191,10 +144,6 @@ func (s *updatableSignatureStore) Query(qs ...query.Query) (query.Results, error
 }
 
 func (s *updatableSignatureStore) baseQueryAll(q query.Query) (query.Results, error) {
-	if s.ac != nil {
-		q.Filters = append(q.Filters, acFilter{s.ac})
-	}
-
 	rs, err := s.updatableStore.QueryAll(q)
 	if err != nil {
 		return nil, err

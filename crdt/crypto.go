@@ -2,6 +2,7 @@ package crdtverse
 
 import (
 	"errors"
+
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	mh "github.com/multiformats/go-multihash"

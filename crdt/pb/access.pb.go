@@ -20,18 +20,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type AccessParams struct {
+type AccessKey struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Pid     string `protobuf:"bytes,1,opt,name=pid,proto3" json:"pid,omitempty"`
-	Address string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	Salt    []byte `protobuf:"bytes,3,opt,name=salt,proto3" json:"salt,omitempty"`
+	MasterKey string `protobuf:"bytes,1,opt,name=masterKey,proto3" json:"masterKey,omitempty"`
+	Access    string `protobuf:"bytes,2,opt,name=access,proto3" json:"access,omitempty"`
 }
 
-func (x *AccessParams) Reset() {
-	*x = AccessParams{}
+func (x *AccessKey) Reset() {
+	*x = AccessKey{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_access_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -39,13 +38,13 @@ func (x *AccessParams) Reset() {
 	}
 }
 
-func (x *AccessParams) String() string {
+func (x *AccessKey) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AccessParams) ProtoMessage() {}
+func (*AccessKey) ProtoMessage() {}
 
-func (x *AccessParams) ProtoReflect() protoreflect.Message {
+func (x *AccessKey) ProtoReflect() protoreflect.Message {
 	mi := &file_access_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -57,42 +56,35 @@ func (x *AccessParams) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AccessParams.ProtoReflect.Descriptor instead.
-func (*AccessParams) Descriptor() ([]byte, []int) {
+// Deprecated: Use AccessKey.ProtoReflect.Descriptor instead.
+func (*AccessKey) Descriptor() ([]byte, []int) {
 	return file_access_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AccessParams) GetPid() string {
+func (x *AccessKey) GetMasterKey() string {
 	if x != nil {
-		return x.Pid
+		return x.MasterKey
 	}
 	return ""
 }
 
-func (x *AccessParams) GetAddress() string {
+func (x *AccessKey) GetAccess() string {
 	if x != nil {
-		return x.Address
+		return x.Access
 	}
 	return ""
-}
-
-func (x *AccessParams) GetSalt() []byte {
-	if x != nil {
-		return x.Salt
-	}
-	return nil
 }
 
 var File_access_proto protoreflect.FileDescriptor
 
 var file_access_proto_rawDesc = []byte{
 	0x0a, 0x0c, 0x61, 0x63, 0x63, 0x65, 0x73, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x02,
-	0x70, 0x62, 0x22, 0x4e, 0x0a, 0x0c, 0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x50, 0x61, 0x72, 0x61,
-	0x6d, 0x73, 0x12, 0x10, 0x0a, 0x03, 0x70, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x03, 0x70, 0x69, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x12,
-	0x0a, 0x04, 0x73, 0x61, 0x6c, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x73, 0x61,
-	0x6c, 0x74, 0x42, 0x04, 0x5a, 0x02, 0x2e, 0x2f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x70, 0x62, 0x22, 0x41, 0x0a, 0x09, 0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x4b, 0x65, 0x79, 0x12,
+	0x1c, 0x0a, 0x09, 0x6d, 0x61, 0x73, 0x74, 0x65, 0x72, 0x4b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x09, 0x6d, 0x61, 0x73, 0x74, 0x65, 0x72, 0x4b, 0x65, 0x79, 0x12, 0x16, 0x0a,
+	0x06, 0x61, 0x63, 0x63, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61,
+	0x63, 0x63, 0x65, 0x73, 0x73, 0x42, 0x04, 0x5a, 0x02, 0x2e, 0x2f, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -109,7 +101,7 @@ func file_access_proto_rawDescGZIP() []byte {
 
 var file_access_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_access_proto_goTypes = []interface{}{
-	(*AccessParams)(nil), // 0: pb.AccessParams
+	(*AccessKey)(nil), // 0: pb.AccessKey
 }
 var file_access_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -126,7 +118,7 @@ func file_access_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_access_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AccessParams); i {
+			switch v := v.(*AccessKey); i {
 			case 0:
 				return &v.state
 			case 1:

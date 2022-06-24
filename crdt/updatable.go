@@ -226,17 +226,21 @@ func (s *updatableStore) QueryAll(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *updatableStore) initPut() error{
+func (s *updatableStore) initPut() error {
 	return s.Put(s.name, []byte(s.name))
 }
-func (s *updatableStore) loadCheck() bool{
-	if !s.inTime{return true}
+func (s *updatableStore) loadCheck() bool {
+	if !s.inTime {
+		return true
+	}
 
 	rs, err := s.Query(query.Query{
 		KeysOnly: true,
-		Limit: 1,
+		Limit:    1,
 	})
-	if err != nil{return false}
+	if err != nil {
+		return false
+	}
 
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil

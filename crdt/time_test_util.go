@@ -18,12 +18,12 @@ func BaseTestTimeLimit(t *testing.T, hGen pv.HostGenerator) {
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
 	priv, pub, _ := p2pcrypto.GenerateEd25519Key(nil)
-	pid := PubKeyToStr(pub)
-	ac := newAccessController(t, hGen, "tc/c", "ac", baiStr, pid)
 	begin := time.Now()
 	end := begin.Add(time.Second * 30)
-	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac, TimeLimit: end}
+	opts0 := &StoreOpts{Priv: priv, Pub: pub, TimeLimit: end}
 	db0 := newStore(t, hGen, "tc/ta", "us", "updatableSignature", baiStr, opts0)
+	pid := PubKeyToStr(pub)
+	db0 = newAccessStore(t, db0, pid)
 	t.Log("db0 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))

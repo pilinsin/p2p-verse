@@ -1,128 +1,306 @@
 package crdtverse
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"strings"
 
 	query "github.com/ipfs/go-datastore/query"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
-	"golang.org/x/crypto/argon2"
 	proto "google.golang.org/protobuf/proto"
-
 )
 
-type acFilter struct {
-	ac *accessController
-}
+type acFilter struct{}
 
 func (f acFilter) Filter(e query.Entry) bool {
-	ok, err := f.ac.Has(e.Key)
-	return err == nil && ok
+	pub := f.extractPubKey(e.Key)
+	if pub == nil {
+		return false
+	}
+
+	sd := &pb.SignatureData{}
+	if err := proto.Unmarshal(e.Value, sd); err != nil {
+		return false
+	}
+	ok, err := pub.Verify(sd.GetValue(), sd.GetSign())
+	return ok && err == nil
+}
+func (f acFilter) extractPubKey(key string) IPubKey {
+	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
+	if len(keys) == 0 {
+		return nil
+	}
+	for _, maybeAcKey := range keys {
+		mak, err := base64.URLEncoding.DecodeString(maybeAcKey)
+		if err != nil {
+			continue
+		}
+		pak := &pb.AccessKey{}
+		if err := proto.Unmarshal(mak, pak); err != nil {
+			continue
+		}
+		if pub, err := StrToPubKey(pak.GetMasterKey()); err == nil {
+			return pub
+		}
+	}
+	return nil
 }
 
-func getAccessOpts(opts ...*StoreOpts) []byte {
+type acVerifyFilter struct {
+	ac IAccessStore
+}
+
+func (f acVerifyFilter) Filter(e query.Entry) bool {
+	ok, err := f.ac.Verify(e.Key)
+	return ok && err == nil
+}
+
+func getAccessOpts(opts ...*StoreOpts) (IPrivKey, IPubKey) {
 	if len(opts) == 0 {
-		salt := make([]byte, 8)
-		rand.Read(salt)
-		return salt
+		priv, pub, _ := generateKeyPair()
+		return priv, pub
 	}
-	return opts[0].Salt
+	if opts[0].Pub == nil {
+		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
+	}
+	return opts[0].Priv, opts[0].Pub
 }
 
-type accessController struct {
-	store *signatureStore
-	addr  string
-	salt  []byte
+type accessExtractor func(string) string
+type putKey func(string) string
+
+type IAccessStore interface {
+	IUpdatableStore
+	ISignatureStore
+	Grant(string, []byte) error
+	Verify(string) (bool, error)
+}
+type accessStore struct {
+	IStore
+	priv            IPrivKey
+	pub             IPubKey
+	accessExtractor accessExtractor
+	putKey          putKey
 }
 
-func (cv *crdtVerse) NewAccessController(name string, accesses <-chan string, opts ...*StoreOpts) (*accessController, error) {
-	salt := getAccessOpts(opts...)
+func (cv *crdtVerse) NewAccessStore(st IStore, accesses <-chan string, opts ...*StoreOpts) (IAccessStore, error) {
+	priv, pub := getAccessOpts(opts...)
 
-	st, err := cv.NewStore(name, "signature", opts...)
-	if err != nil {
-		return nil, err
-	}
-	sgst := st.(*signatureStore)
-	ac := &accessController{sgst, st.Address(), salt}
-	if err := ac.init(accesses); err != nil {
-		ac.Close()
-		return nil, err
-	}
-	return ac, nil
-}
-func (s *accessController) init(accesses <-chan string) error {
-	if s.store.priv == nil || s.store.pub == nil {
-		s.store.priv, s.store.pub, _ = generateKeyPair()
+	ext, putKey := getAccessExtractor(st)
+	ac := &accessStore{
+		IStore:          st,
+		priv:            priv,
+		pub:             pub,
+		accessExtractor: ext,
+		putKey:          putKey,
 	}
 
 	for access := range accesses {
 		b := make([]byte, 32)
 		rand.Read(b)
-		if err := s.put(access, b); err != nil {
-			s.Close()
-			return err
+		if err := ac.Grant(access, b); err != nil {
+			ac.Close()
+			return nil, err
 		}
 	}
+	ac.priv = nil
+	return ac, nil
+}
+func (s *accessStore) Grant(access string, val []byte) error {
+	if s.priv == nil {
+		return errors.New("no valid privKey")
+	}
 
-	s.store.priv = nil
-	return nil
-}
-func (s *accessController) put(key string, val []byte) error {
-	hash := argon2.IDKey([]byte(key), s.salt, 1, 64*1024, 4, 64)
-	hashKey := base64.URLEncoding.EncodeToString(hash)
-	return s.store.Put(hashKey, val)
-}
-func (cv *crdtVerse) loadAccessController(ctx context.Context, acAddr string) (*accessController, error) {
-	m, err := base64.URLEncoding.DecodeString(acAddr)
+	sign, err := s.priv.Sign(val)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	ap := &pb.AccessParams{}
-	if err := proto.Unmarshal(m, ap); err != nil {
-		return nil, err
+	sd := &pb.SignatureData{
+		Value: val,
+		Sign:  sign,
 	}
-	pub, err := StrToPubKey(ap.GetPid())
+	msd, err := proto.Marshal(sd)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	opt := &StoreOpts{Priv: nil, Pub: pub}
-	st, err := cv.NewStore(ap.GetAddress(), "signature", opt)
-	if err != nil {
-		st.Close()
-		return nil, err
+	acKey := s.accessKey(access)
+	if acKey == "" {
+		return errors.New("accessKey generation error")
 	}
-	sgst := st.(*signatureStore)
-	acst := &accessController{sgst, ap.GetAddress(), ap.GetSalt()}
-	return acst, nil
+	return s.IStore.Put(acKey, msd)
 }
-
-
-func (s *accessController) Close() {
-	s.store.Close()
-}
-func (s *accessController) Address() string {
-	pid := PubKeyToStr(s.store.pub)
-	m, err := proto.Marshal(&pb.AccessParams{
-		Pid:  pid,
-		Address: s.addr,
-		Salt: s.salt,
-	})
+func (s *accessStore) accessKey(access string) string {
+	sKey := PubKeyToStr(s.pub)
+	if sKey == "" {
+		return ""
+	}
+	key := &pb.AccessKey{
+		MasterKey: sKey,
+		Access:    access,
+	}
+	m, err := proto.Marshal(key)
 	if err != nil {
 		return ""
 	}
 	return base64.URLEncoding.EncodeToString(m)
 }
-func (s *accessController) Has(key string) (bool, error) {
-	sKey := strings.Split(strings.TrimPrefix(key, "/"), "/")[0]
-	return s.has(sKey)
-}
-func (s *accessController) has(key string) (bool, error) {
-	hash := argon2.IDKey([]byte(key), s.salt, 1, 64*1024, 4, 64)
-	hashKey := base64.URLEncoding.EncodeToString(hash)
 
-	pid := PubKeyToStr(s.store.pub)
-	return s.store.Has(pid + "/" + hashKey)
+func (cv *crdtVerse) loadAccessStore(st IStore, pid string, opts ...*StoreOpts) (IAccessStore, error) {
+	priv, _ := getAccessOpts(opts...)
+	pub, err := StrToPubKey(pid)
+	if err != nil {
+		return nil, err
+	}
+
+	ext, putKey := getAccessExtractor(st)
+	ac := &accessStore{
+		IStore:          st,
+		priv:            priv,
+		pub:             pub,
+		accessExtractor: ext,
+		putKey:          putKey,
+	}
+	return ac, nil
+}
+func getAccessExtractor(st IStore) (accessExtractor, putKey) {
+	if hs, ok := st.(*hashStore); ok {
+		f := func(key string) string {
+			return key
+		}
+		return f, hs.putKey
+	}
+
+	sigExt := func(key string) string {
+		keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
+		if len(keys) == 0 {
+			return ""
+		}
+		return keys[0]
+	}
+	if ss, ok := st.(*signatureStore); ok {
+		return sigExt, ss.putKey
+	}
+	if us, ok := st.(*updatableSignatureStore); ok {
+		return sigExt, us.putKey
+	}
+	return func(_ string) string { return "" }, func(_ string) string { return "" }
+}
+
+func (s *accessStore) Address() string {
+	name, _, time, err := parseAddress(s.IStore.Address())
+	if err != nil {
+		return ""
+	}
+
+	pid := PubKeyToStr(s.pub)
+	return MakeAddress(name, pid, time)
+}
+
+func (s *accessStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
+	if sig, ok := s.IStore.(ISignatureStore); ok {
+		sig.ResetKeyPair(priv, pub)
+	}
+}
+
+func (s *accessStore) Verify(key string) (bool, error) {
+	access := s.accessExtractor(key)
+	if access == "" {
+		return false, errors.New("invalid access error")
+	}
+	acKey := s.accessKey(access)
+	if acKey == "" {
+		return false, errors.New("accessKey generation error")
+	}
+
+	rs, err := s.IStore.Query(query.Query{
+		Filters: []query.Filter{KeyExistFilter{Key: acKey}},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	rs = query.NaiveFilter(rs, acFilter{})
+	resList, err := rs.Rest()
+	return len(resList) > 0, err
+}
+
+func (s *accessStore) Put(key string, val []byte) error {
+	ok, err := s.Verify(s.putKey(key))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("no access permission")
+	}
+
+	return s.IStore.Put(key, val)
+}
+func (s *accessStore) Get(key string) ([]byte, error) {
+	ok, err := s.Verify(key)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("no access permission")
+	}
+
+	return s.IStore.Get(key)
+}
+func (s *accessStore) GetSize(key string) (int, error) {
+	ok, err := s.Verify(key)
+	if err != nil {
+		return -1, err
+	}
+	if !ok {
+		return -1, errors.New("no access permission")
+	}
+
+	return s.IStore.GetSize(key)
+}
+func (s *accessStore) Has(key string) (bool, error) {
+	ok, err := s.Verify(key)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, errors.New("no access permission")
+	}
+
+	return s.IStore.Has(key)
+}
+func (s *accessStore) Query(qs ...query.Query) (query.Results, error) {
+	rs, err := s.IStore.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	var q query.Query
+	if len(qs) == 0 {
+		q = query.Query{}
+	} else {
+		q = qs[0]
+	}
+	q.Filters = append(q.Filters, acVerifyFilter{ac: s})
+	return query.NaiveQueryApply(q, rs), nil
+}
+func (s *accessStore) QueryAll(qs ...query.Query) (query.Results, error) {
+	if us, ok := s.IStore.(IUpdatableSignatureStore); ok {
+		rs, err := us.QueryAll(qs...)
+		if err != nil {
+			return nil, err
+		}
+
+		var q query.Query
+		if len(qs) == 0 {
+			q = query.Query{}
+		} else {
+			q = qs[0]
+		}
+		q.Filters = append(q.Filters, acVerifyFilter{ac: s})
+		return query.NaiveQueryApply(q, rs), nil
+	}
+
+	return nil, errors.New("not implemented error")
 }

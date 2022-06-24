@@ -3,14 +3,13 @@ package crdtverse
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/argon2"
 	query "github.com/ipfs/go-datastore/query"
-	proto "google.golang.org/protobuf/proto"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	"golang.org/x/crypto/argon2"
+	proto "google.golang.org/protobuf/proto"
 )
 
 func MakeHashKey(bHashStr string, salt []byte) string {
@@ -39,23 +38,22 @@ func (v *hashValidator) Validate(key string, val []byte) bool {
 	return key == hKey
 }
 
-func getHashOpts(opts ...*StoreOpts) ([]byte, *accessController, time.Time) {
+func getHashOpts(opts ...*StoreOpts) ([]byte, time.Time) {
 	if len(opts) == 0 {
 		salt := make([]byte, 8)
 		rand.Read(salt)
-		return salt, nil, time.Time{}
+		return salt, time.Time{}
 	}
 	if opts[0].Salt == nil {
 		opts[0].Salt = make([]byte, 8)
 		rand.Read(opts[0].Salt)
 	}
-	return opts[0].Salt, opts[0].Ac, opts[0].TimeLimit
+	return opts[0].Salt, opts[0].TimeLimit
 }
 
 type hashStore struct {
 	*baseStore
 	salt []byte
-	ac   *accessController
 }
 
 func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, error) {
@@ -64,50 +62,17 @@ func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, erro
 		return nil, err
 	}
 
-	salt, ac, tl := getHashOpts(opts...)
+	salt, tl := getHashOpts(opts...)
 	st.timeLimit = tl
 	st.setTimeLimit()
-	return &hashStore{st, salt, ac}, nil
+	return &hashStore{st, salt}, nil
 }
 
-func (s *hashStore) Close() {
-	if s.ac != nil {
-		s.ac.Close()
-	}
-	s.baseStore.Close()
+func (s *hashStore) putKey(key string) string{
+	return MakeHashKey(key, s.salt)
 }
-
-
-func (s *hashStore) Address() string {
-	name := s.baseStore.Address()
-	if s.ac != nil {
-		name += "/" + s.ac.Address()
-	}
-	return name
-}
-
-func (s *hashStore) Sync() error{
-	if s.ac != nil {
-		if err := s.ac.store.Sync(); err != nil{return err}
-	}
-	return s.baseStore.Sync()
-}
-
-func (s *hashStore) verify(key string) error {
-	if s.ac != nil {
-		ok, err := s.ac.Has(key)
-		if !ok || err != nil {
-			return errors.New("permission error")
-		}
-	}
-	return nil
-}
-
 func (s *hashStore) Put(bHashStr string, val []byte) error {
 	key := MakeHashKey(bHashStr, s.salt)
-	if err := s.verify(key); err != nil {
-		return err
-	}
 
 	hd := &pb.HashData{
 		BaseHash: bHashStr,
@@ -121,10 +86,6 @@ func (s *hashStore) Put(bHashStr string, val []byte) error {
 	return s.baseStore.Put(key, m)
 }
 func (s *hashStore) get(key string) ([]byte, error) {
-	if err := s.verify(key); err != nil {
-		return nil, err
-	}
-
 	m, err := s.baseStore.Get(key)
 	if err != nil {
 		return nil, err
@@ -151,20 +112,14 @@ func (s *hashStore) GetSize(key string) (int, error) {
 	}
 	return len(val), nil
 }
-func (s *hashStore) has(key string) (bool, error) {
-	if err := s.verify(key); err != nil {
-		return false, err
-	}
-	return s.baseStore.Has(key)
-}
 func (s *hashStore) Has(key string) (bool, error) {
-	ok, err := s.has(key)
+	ok, err := s.baseStore.Has(key)
 	if ok && err == nil {
 		return true, nil
 	}
 
 	key = MakeHashKey(key, s.salt)
-	return s.has(key)
+	return s.baseStore.Has(key)
 }
 func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	var q query.Query
@@ -173,9 +128,7 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	} else {
 		q = qs[0]
 	}
-	if s.ac != nil {
-		q.Filters = append(q.Filters, acFilter{s.ac})
-	}
+	
 	rs, err := s.baseStore.Query(q)
 	if err != nil {
 		return nil, err

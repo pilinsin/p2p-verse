@@ -1,10 +1,11 @@
 package crdtverse
 
 import (
-	pv "github.com/pilinsin/p2p-verse"
 	"os"
 	"testing"
 	"time"
+
+	pv "github.com/pilinsin/p2p-verse"
 )
 
 func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
@@ -16,12 +17,11 @@ func BaseTestAccessController(t *testing.T, hGen pv.HostGenerator) {
 	baiStr := pv.AddrInfoToString(bAddrInfo)
 
 	priv, pub, _ := generateKeyPair()
-	pid := PubKeyToStr(pub)
-	ac := newAccessController(t, hGen, "ac/c", "ac", baiStr, pid)
-	opts0 := &StoreOpts{Priv: priv, Pub: pub, Ac: ac}
+	opts0 := &StoreOpts{Priv: priv, Pub: pub}
 	db0 := newStore(t, hGen, "ac/aa", "us", "updatableSignature", baiStr, opts0)
+	pid := PubKeyToStr(pub)
+	db0 = newAccessStore(t, db0, pid)
 	t.Log("db0 generated")
-
 
 	db1 := newStore(t, hGen, "ac/ab", db0.Address(), "updatableSignature", baiStr)
 	t.Log("db1 generated")

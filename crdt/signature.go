@@ -7,8 +7,8 @@ import (
 
 	query "github.com/ipfs/go-datastore/query"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	proto "google.golang.org/protobuf/proto"
 	pb "github.com/pilinsin/p2p-verse/crdt/pb"
+	proto "google.golang.org/protobuf/proto"
 )
 
 func PubKeyToStr(vk IPubKey) string {
@@ -56,15 +56,15 @@ func (v *signatureValidator) Validate(key string, val []byte) bool {
 	return err == nil && ok
 }
 
-func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, *accessController, time.Time) {
+func getSignatureOpts(opts ...*StoreOpts) (IPrivKey, IPubKey, time.Time) {
 	if len(opts) == 0 {
 		priv, pub, _ := generateKeyPair()
-		return priv, pub, nil, time.Time{}
+		return priv, pub, time.Time{}
 	}
 	if opts[0].Pub == nil {
 		opts[0].Priv, opts[0].Pub, _ = generateKeyPair()
 	}
-	return opts[0].Priv, opts[0].Pub, opts[0].Ac, opts[0].TimeLimit
+	return opts[0].Priv, opts[0].Pub, opts[0].TimeLimit
 }
 
 type ISignatureStore interface {
@@ -76,7 +76,6 @@ type signatureStore struct {
 	*baseStore
 	priv IPrivKey
 	pub  IPubKey
-	ac   *accessController
 }
 
 func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (ISignatureStore, error) {
@@ -85,32 +84,10 @@ func (cv *crdtVerse) NewSignatureStore(name string, opts ...*StoreOpts) (ISignat
 		return nil, err
 	}
 
-	priv, pub, ac, tl := getSignatureOpts(opts...)
+	priv, pub, tl := getSignatureOpts(opts...)
 	st.timeLimit = tl
 	st.setTimeLimit()
-	return &signatureStore{st, priv, pub, ac}, nil
-}
-
-func (s *signatureStore) Close() {
-	if s.ac != nil {
-		s.ac.Close()
-	}
-	s.baseStore.Close()
-}
-
-func (s *signatureStore) Address() string {
-	name := s.baseStore.Address()
-	if s.ac != nil {
-		name += "/" + s.ac.Address()
-	}
-	return name
-}
-
-func (s *signatureStore) Sync() error{
-	if s.ac != nil {
-		if err := s.ac.store.Sync(); err != nil{return err}
-	}
-	return s.baseStore.Sync()
+	return &signatureStore{st, priv, pub}, nil
 }
 
 func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
@@ -120,14 +97,12 @@ func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
 	s.priv = priv
 	s.pub = pub
 }
-func (s *signatureStore) verify(key string) error {
-	if s.ac != nil {
-		ok, err := s.ac.Has(key)
-		if !ok || err != nil {
-			return errors.New("permission error")
-		}
+func (s *signatureStore) putKey(key string) string {
+	sKey := PubKeyToStr(s.pub)
+	if sKey == "" {
+		return ""
 	}
-	return nil
+	return sKey + "/" + key
 }
 
 func (s *signatureStore) Put(key string, val []byte) error {
@@ -152,18 +127,10 @@ func (s *signatureStore) Put(key string, val []byte) error {
 	if sKey == "" {
 		return errors.New("invalid pubKey")
 	}
-	if err := s.verify(sKey); err != nil {
-		return err
-	}
-
 	key = sKey + "/" + key
 	return s.baseStore.Put(key, msd)
 }
 func (s *signatureStore) Get(key string) ([]byte, error) {
-	if err := s.verify(key); err != nil {
-		return nil, err
-	}
-
 	msd, err := s.baseStore.Get(key)
 	if err != nil {
 		return nil, err
@@ -181,12 +148,7 @@ func (s *signatureStore) GetSize(key string) (int, error) {
 	}
 	return len(val), nil
 }
-func (s *signatureStore) Has(key string) (bool, error) {
-	if err := s.verify(key); err != nil {
-		return false, err
-	}
-	return s.baseStore.Has(key)
-}
+
 func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 	var q query.Query
 	if len(qs) == 0 {
@@ -194,12 +156,9 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 	} else {
 		q = qs[0]
 	}
-	if s.ac != nil {
-		q.Filters = append(q.Filters, acFilter{s.ac})
-	}
 
 	rs, err := s.baseStore.Query(q)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	if q.KeysOnly {
@@ -222,7 +181,7 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *signatureStore) initPut() error{
+func (s *signatureStore) initPut() error {
 	if s.priv == nil {
 		return errors.New("no valid privKey")
 	}
@@ -246,18 +205,22 @@ func (s *signatureStore) initPut() error{
 	if sKey == "" {
 		return errors.New("invalid pubKey")
 	}
-	
+
 	key := sKey + "/" + s.name
 	return s.baseStore.Put(key, msd)
 }
-func (s *signatureStore) loadCheck() bool{
-	if !s.inTime{return true}
+func (s *signatureStore) loadCheck() bool {
+	if !s.inTime {
+		return true
+	}
 
 	rs, err := s.baseStore.Query(query.Query{
 		KeysOnly: true,
-		Limit: 1,
+		Limit:    1,
 	})
-	if err != nil{return false}
+	if err != nil {
+		return false
+	}
 
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil

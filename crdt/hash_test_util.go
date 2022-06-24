@@ -26,7 +26,6 @@ func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
 	time.Sleep(time.Second * 10)
 
-
 	v10, err := db1.Get("aaa")
 	checkError(t, err)
 	t.Log(string(v10))
@@ -35,7 +34,6 @@ func BaseTestHashStore(t *testing.T, hGen pv.HostGenerator) {
 
 	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
 	time.Sleep(time.Second * 10)
-
 
 	v12, err := db1.Get("aaa")
 	checkError(t, err)
