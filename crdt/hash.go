@@ -68,9 +68,10 @@ func (cv *crdtVerse) NewHashStore(name string, opts ...*StoreOpts) (IStore, erro
 	return &hashStore{st, salt}, nil
 }
 
-func (s *hashStore) putKey(key string) string{
-	return MakeHashKey(key, s.salt)
+func (s *hashStore) Address() string {
+	return MakeAddress(s.name, "", s.salt, s.timeLimit)
 }
+
 func (s *hashStore) Put(bHashStr string, val []byte) error {
 	key := MakeHashKey(bHashStr, s.salt)
 
@@ -128,7 +129,7 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	} else {
 		q = qs[0]
 	}
-	
+
 	rs, err := s.baseStore.Query(q)
 	if err != nil {
 		return nil, err
@@ -153,7 +154,39 @@ func (s *hashStore) Query(qs ...query.Query) (query.Results, error) {
 	return query.ResultsWithChan(query.Query{}, ch), nil
 }
 
-func (s *hashStore) initPut() error{
+func (s *hashStore) accessFromKey(key string) string {
+	return key
+}
+func (s *hashStore) putKey(key string) string {
+	return MakeHashKey(key, s.salt)
+}
+func (s *hashStore) acQuery(acKey string) (query.Results, error) {
+	key := MakeHashKey(acKey, s.salt)
+	rs, err := s.baseStore.Query(query.Query{
+		Filters: []query.Filter{KeyMatchFilter{Key: key}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan query.Result)
+	go func() {
+		defer close(ch)
+		for r := range rs.Next() {
+			hd := &pb.HashData{}
+			if err := proto.Unmarshal(r.Value, hd); err != nil {
+				continue
+			}
+
+			r.Key = hd.GetBaseHash()
+			r.Value = hd.GetValue()
+			ch <- r
+		}
+	}()
+	return query.ResultsWithChan(query.Query{}, ch), nil
+}
+
+func (s *hashStore) initPut() error {
 	key := MakeHashKey(s.name, s.salt)
 
 	hd := &pb.HashData{
@@ -167,14 +200,18 @@ func (s *hashStore) initPut() error{
 	}
 	return s.baseStore.Put(key, m)
 }
-func (s *hashStore) loadCheck() bool{
-	if !s.inTime{return true}
+func (s *hashStore) loadCheck() bool {
+	if !s.inTime {
+		return true
+	}
 
 	rs, err := s.baseStore.Query(query.Query{
 		KeysOnly: true,
-		Limit: 1,
+		Limit:    1,
 	})
-	if err != nil{return false}
+	if err != nil {
+		return false
+	}
 
 	resList, err := rs.Rest()
 	return len(resList) > 0 && err == nil

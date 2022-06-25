@@ -44,7 +44,7 @@ type bootstrapStore struct {
 
 func NewBootstrapStore(dir string) (IBootstrapStore, error) {
 	p2pBsAddrInfos := kad.GetDefaultBootstrapPeerAddrInfos()
-	addr := crdt.MakeAddress(bStoreName, "")
+	addr := crdt.MakeAddress(bStoreName, "", nil)
 
 	cv := crdt.NewVerse(pv.SampleHost, dir, false, p2pBsAddrInfos...)
 	tmp, err := cv.NewStore(addr, "updatableSignature")

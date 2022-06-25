@@ -27,7 +27,7 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
-func MakeAddress(name, pid string, timeLimits ...time.Time) string {
+func MakeAddress(name, pid string, salt []byte, timeLimits ...time.Time) string {
 	tl := time.Time{}
 	if len(timeLimits) > 0 {
 		tl = timeLimits[0]
@@ -39,6 +39,7 @@ func MakeAddress(name, pid string, timeLimits ...time.Time) string {
 	}
 	baseAddress := &pb.BaseAddress{
 		Name: name,
+		Salt: salt,
 		Pid:  pid,
 		Time: mt,
 	}
@@ -117,10 +118,11 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 	}
 
 	var s IStore
-	stName, pid, tl, err := parseAddress(name)
+	stName, salt, pid, tl, err := parseAddress(name)
 	if err != nil {
 		s, err = cv.newStore(name, mode, opt)
 	} else {
+		opt.Salt = salt
 		opt.TimeLimit = tl
 		s, err = cv.loadStore(stName, mode, opt)
 	}
@@ -138,25 +140,25 @@ func (cv *crdtVerse) NewStore(name, mode string, opts ...*StoreOpts) (IStore, er
 	s.autoSync()
 	return s, err
 }
-func parseAddress(addr string) (string, string, time.Time, error) {
+func parseAddress(addr string) (string, []byte, string, time.Time, error) {
 	if addr == "" {
-		return "", "", time.Time{}, errors.New("invalid address")
+		return "", nil, "", time.Time{}, errors.New("invalid address")
 	}
 	m, err := base64.URLEncoding.DecodeString(addr)
 	if err != nil {
-		return "", "", time.Time{}, err
+		return "", nil, "", time.Time{}, err
 	}
 
 	baseAddress := &pb.BaseAddress{}
 	if err := proto.Unmarshal(m, baseAddress); err != nil {
-		return "", "", time.Time{}, err
+		return "", nil, "", time.Time{}, err
 	}
 
 	tl := time.Time{}
 	if err := tl.UnmarshalBinary(baseAddress.GetTime()); err != nil {
-		return "", "", time.Time{}, err
+		return "", nil, "", time.Time{}, err
 	}
-	return baseAddress.GetName(), baseAddress.GetPid(), tl, nil
+	return baseAddress.GetName(), baseAddress.GetSalt(), baseAddress.GetPid(), tl, nil
 }
 func (cv *crdtVerse) selectNewStore(name, mode string, opts ...*StoreOpts) (IStore, error) {
 	switch mode {
@@ -293,7 +295,7 @@ func (s *baseStore) Close() {
 	s.dsCancel()
 }
 func (s *baseStore) Address() string {
-	return MakeAddress(s.name, "", s.timeLimit)
+	return MakeAddress(s.name, "", nil, s.timeLimit)
 }
 func (s *baseStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)

@@ -2,6 +2,7 @@ package crdtverse
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	query "github.com/ipfs/go-datastore/query"
@@ -53,14 +54,6 @@ func (s *updatableSignatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
 	}
 	s.priv = priv
 	s.pub = pub
-}
-
-func (s *updatableSignatureStore) putKey(key string) string {
-	sKey := PubKeyToStr(s.pub)
-	if sKey == "" {
-		return ""
-	}
-	return sKey + "/" + key
 }
 
 func (s *updatableSignatureStore) Put(key string, val []byte) error {
@@ -176,6 +169,26 @@ func (s *updatableSignatureStore) QueryAll(qs ...query.Query) (query.Results, er
 	}
 
 	return s.baseQueryAll(q)
+}
+
+func (s *updatableSignatureStore) accessFromKey(key string) string {
+	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
+	if len(keys) == 0 {
+		return ""
+	}
+	return keys[0]
+}
+func (s *updatableSignatureStore) putKey(key string) string {
+	sKey := PubKeyToStr(s.pub)
+	if sKey == "" {
+		return ""
+	}
+	return sKey + "/" + key
+}
+func (s *updatableSignatureStore) acQuery(acKey string) (query.Results, error) {
+	return s.Query(query.Query{
+		Filters: []query.Filter{KeyExistFilter{Key: acKey}},
+	})
 }
 
 func (s *updatableSignatureStore) initPut() error {

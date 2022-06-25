@@ -4,6 +4,7 @@ option go_package = "./";
 
 message BaseAddress{
 	string 	name	= 1;
-	string	pid		= 2;
-	bytes 	time	= 3;
+	bytes	salt	= 2;
+	string	pid		= 3;
+	bytes 	time	= 4;
 }

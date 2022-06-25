@@ -97,13 +97,6 @@ func (s *signatureStore) ResetKeyPair(priv IPrivKey, pub IPubKey) {
 	s.priv = priv
 	s.pub = pub
 }
-func (s *signatureStore) putKey(key string) string {
-	sKey := PubKeyToStr(s.pub)
-	if sKey == "" {
-		return ""
-	}
-	return sKey + "/" + key
-}
 
 func (s *signatureStore) Put(key string, val []byte) error {
 	if s.priv == nil {
@@ -179,6 +172,26 @@ func (s *signatureStore) Query(qs ...query.Query) (query.Results, error) {
 		}
 	}()
 	return query.ResultsWithChan(query.Query{}, ch), nil
+}
+
+func (s *signatureStore) accessFromKey(key string) string {
+	keys := strings.Split(strings.TrimPrefix(key, "/"), "/")
+	if len(keys) == 0 {
+		return ""
+	}
+	return keys[0]
+}
+func (s *signatureStore) putKey(key string) string {
+	sKey := PubKeyToStr(s.pub)
+	if sKey == "" {
+		return ""
+	}
+	return sKey + "/" + key
+}
+func (s *signatureStore) acQuery(acKey string) (query.Results, error) {
+	return s.Query(query.Query{
+		Filters: []query.Filter{KeyExistFilter{Key: acKey}},
+	})
 }
 
 func (s *signatureStore) initPut() error {
