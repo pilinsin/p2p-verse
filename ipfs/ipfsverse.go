@@ -17,15 +17,22 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
+var defaultTimer = time.Minute*5
+func getTimeFromTimers(timers ...time.Time) time.Time{
+	if len(timers) == 0{
+		return defaultTimer
+	}
+	return timers[0]
+}
 
 type Ipfs interface {
 	Close()
 	AddrInfo() peer.AddrInfo
-	AddReader(io.Reader) (string, error)
-	Add([]byte) (string, error)
-	GetReader(string) (uio.ReadSeekCloser, error)
-	Get(string) ([]byte, error)
-	Has(string) (bool, error)
+	AddReader(io.Reader, ...time.Time) (string, error)
+	Add([]byte, ...time.Time) (string, error)
+	GetReader(string, ...time.Time) (uio.ReadSeekCloser, error)
+	Get(string, ...time.Time) ([]byte, error)
+	Has(string, ...time.Time) (bool, error)
 }
 
 type ipfsStore struct {
@@ -89,8 +96,9 @@ func (s *ipfsStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)
 }
 
-func (s *ipfsStore) AddReader(r io.Reader) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+func (s *ipfsStore) AddReader(r io.Reader, timers ...time.Time) (string, error) {
+	timer := getTimeFromTimers(timers)
+	ctx, cancel := context.WithTimeout(context.Background(), timer)
 	defer cancel()
 	ap := ipfslt.AddParams{HashFun: "sha3-256"}
 	nd, err := s.ipfs.AddFile(ctx, r, &ap)
@@ -99,21 +107,23 @@ func (s *ipfsStore) AddReader(r io.Reader) (string, error) {
 	}
 	return nd.Cid().String(), nil
 }
-func (s *ipfsStore) Add(data []byte) (string, error) {
+func (s *ipfsStore) Add(data []byte, timers ...time.Time) (string, error) {
 	buf := bytes.NewBuffer(data)
-	return s.AddReader(buf)
+	return s.AddReader(buf, timers...)
 }
-func (s *ipfsStore) GetReader(cidStr string) (uio.ReadSeekCloser, error) {
+func (s *ipfsStore) GetReader(cidStr string, timers ...time.Time) (uio.ReadSeekCloser, error) {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	
+	timer := getTimeFromTimers(timers)
+	ctx, cancel := context.WithTimeout(context.Background(), timer)
 	defer cancel()
 	return s.ipfs.GetFile(ctx, c)
 }
-func (s *ipfsStore) Get(cidStr string) ([]byte, error) {
-	r, err := s.GetReader(cidStr)
+func (s *ipfsStore) Get(cidStr string, timers ...time.Time) ([]byte, error) {
+	r, err := s.GetReader(cidStr, timers...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,12 +132,14 @@ func (s *ipfsStore) Get(cidStr string) ([]byte, error) {
 	_, err = buf.ReadFrom(r)
 	return buf.Bytes(), err
 }
-func (s *ipfsStore) Has(cidStr string) (bool, error) {
+func (s *ipfsStore) Has(cidStr string, timers ...time.Time) (bool, error) {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
 		return false, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+
+	timer := getTimeFromTimers(timers)
+	ctx, cancel := context.WithTimeout(context.Background(), timer)
 	defer cancel()
 	return s.ipfs.HasBlock(ctx, c)
 }
