@@ -96,9 +96,9 @@ func (s *ipfsStore) AddrInfo() peer.AddrInfo {
 	return pv.HostToAddrInfo(s.h)
 }
 
-func (s *ipfsStore) AddReader(r io.Reader, durations ...time.Duration) (string, error) {
-	duration := getDurationFromDurations(durations)
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+func (s *ipfsStore) AddReader(r io.Reader, timeouts ...time.Duration) (string, error) {
+	timeout := getDurationFromDurations(timeouts)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ap := ipfslt.AddParams{HashFun: "sha3-256"}
 	nd, err := s.ipfs.AddFile(ctx, r, &ap)
@@ -107,23 +107,23 @@ func (s *ipfsStore) AddReader(r io.Reader, durations ...time.Duration) (string, 
 	}
 	return nd.Cid().String(), nil
 }
-func (s *ipfsStore) Add(data []byte, durations ...time.Duration) (string, error) {
+func (s *ipfsStore) Add(data []byte, timeouts ...time.Duration) (string, error) {
 	buf := bytes.NewBuffer(data)
-	return s.AddReader(buf, durations...)
+	return s.AddReader(buf, timeouts...)
 }
-func (s *ipfsStore) GetReader(cidStr string, durations ...time.Duration) (uio.ReadSeekCloser, error) {
+func (s *ipfsStore) GetReader(cidStr string, timeouts ...time.Duration) (uio.ReadSeekCloser, error) {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
 		return nil, err
 	}
 	
-	duration := getDurationFromDurations(durations)
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	timeout := getDurationFromDurations(timeouts)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return s.ipfs.GetFile(ctx, c)
 }
-func (s *ipfsStore) Get(cidStr string, durations ...time.Duration) ([]byte, error) {
-	r, err := s.GetReader(cidStr, durations...)
+func (s *ipfsStore) Get(cidStr string, timeouts ...time.Duration) ([]byte, error) {
+	r, err := s.GetReader(cidStr, timeouts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,14 +132,14 @@ func (s *ipfsStore) Get(cidStr string, durations ...time.Duration) ([]byte, erro
 	_, err = buf.ReadFrom(r)
 	return buf.Bytes(), err
 }
-func (s *ipfsStore) Has(cidStr string, durations ...time.Duration) (bool, error) {
+func (s *ipfsStore) Has(cidStr string, timeouts ...time.Duration) (bool, error) {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
 		return false, err
 	}
 
-	duration := getDurationFromDurations(durations)
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	timeout := getDurationFromDurations(timeouts)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return s.ipfs.HasBlock(ctx, c)
 }
