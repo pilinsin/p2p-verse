@@ -97,7 +97,7 @@ func (s *ipfsStore) AddrInfo() peer.AddrInfo {
 }
 
 func (s *ipfsStore) AddReader(r io.Reader, durations ...time.Duration) (string, error) {
-	duration := getTimeFromTimers(durations)
+	duration := getdurationFromDurations(durations)
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 	ap := ipfslt.AddParams{HashFun: "sha3-256"}
@@ -117,7 +117,7 @@ func (s *ipfsStore) GetReader(cidStr string, durations ...time.Duration) (uio.Re
 		return nil, err
 	}
 	
-	duration := getTimeFromTimers(durations)
+	duration := getdurationFromDurations(durations)
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 	return s.ipfs.GetFile(ctx, c)
@@ -138,7 +138,7 @@ func (s *ipfsStore) Has(cidStr string, durations ...time.Duration) (bool, error)
 		return false, err
 	}
 
-	duration := getTimeFromTimers(durations)
+	duration := getdurationFromDurations(durations)
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 	return s.ipfs.HasBlock(ctx, c)
