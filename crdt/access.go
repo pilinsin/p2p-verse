@@ -198,6 +198,7 @@ func (s *accessStore) Verify(key string) error {
 	return nil
 }
 func (s *accessStore) verify(key string) (bool, error) {
+	key = strings.TrimPrefix(key, "/")
 	access := s.accessFromKey(key)
 	if access == "" {
 		return false, errors.New("invalid access error")

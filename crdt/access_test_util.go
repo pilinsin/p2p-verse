@@ -10,11 +10,11 @@ import (
 
 func testHashAccess(t *testing.T, hGen pv.HostGenerator, baiStr string) {
 	opts := &StoreOpts{}
-	db0 := newStore(t, hGen, "hs/ha", "hs", "hash", baiStr, opts)
+	db0 := newStore(t, hGen, "ahs/ha", "hs", "hash", baiStr, opts)
 	db0 = newAccessStore(t, db0, db0.(*hashStore).putKey("aaa"))
 	t.Log("db0 generated")
 
-	db1 := newStore(t, hGen, "hs/hb", db0.Address(), "hash", baiStr)
+	db1 := newStore(t, hGen, "ahs/hb", db0.Address(), "hash", baiStr)
 	t.Log("db1 generated")
 
 	checkError(t, db0.Put("aaa", []byte("meow meow ^.^")))
@@ -33,10 +33,16 @@ func testHashAccess(t *testing.T, hGen pv.HostGenerator, baiStr string) {
 	checkError(t, err)
 	t.Log(string(v12))
 
+	rs, err := db1.Query()
+	checkError(t, err)
+	resList, err := rs.Rest()
+	checkError(t, err)
+	assertError(t, len(resList) > 0, "valid data must be exist")
+
 	db0.Close()
 	db1.Close()
 	time.Sleep(time.Second)
-	os.RemoveAll("hs")
+	os.RemoveAll("ahs")
 }
 
 func testSignatureAccess(t *testing.T, hGen pv.HostGenerator, baiStr string) {
@@ -57,6 +63,12 @@ func testSignatureAccess(t *testing.T, hGen pv.HostGenerator, baiStr string) {
 	v10, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")
 	checkError(t, err)
 	t.Log("db1.Get:", string(v10))
+
+	rs, err := db1.Query()
+	checkError(t, err)
+	resList, err := rs.Rest()
+	checkError(t, err)
+	assertError(t, len(resList) > 0, "valid data must be exist")
 
 	db0.Close()
 	db1.Close()
