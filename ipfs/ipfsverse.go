@@ -1,6 +1,7 @@
 package ipfsverse
 
 import (
+	"errors"
 	"bytes"
 	"context"
 	"io"
@@ -141,5 +142,9 @@ func (s *ipfsStore) Has(cidStr string, timeouts ...time.Duration) (bool, error) 
 	timeout := getDurationFromDurations(timeouts)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return s.ipfs.HasBlock(ctx, c)
+	has, err := s.ipfs.HasBlock(ctx, c)
+	if err != nil && !errors.Is(err, context.DeadlineExceeded){
+		return false, err
+	}
+	return has, nil
 }

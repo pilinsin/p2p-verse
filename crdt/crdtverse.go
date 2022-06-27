@@ -313,12 +313,12 @@ func (s *baseStore) setTimeLimit() {
 		return
 	}
 	go func() {
-		ticker := time.NewTicker(time.Until(s.timeLimit))
-		defer ticker.Stop()
+		tlCtx, tlCancel := context.WithDeadline(context.Background(), s.timeLimit)
+		defer tlCancel()
 		select {
 		case <-s.ctx.Done():
 			return
-		case <-ticker.C:
+		case <-tlCtx.Done():
 			s.dt.Sync(s.ctx, ds.NewKey("/"))
 			s.inTime = false
 		}
