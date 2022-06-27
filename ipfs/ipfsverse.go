@@ -1,9 +1,9 @@
 package ipfsverse
 
 import (
-	"errors"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"time"
@@ -18,9 +18,11 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
-var defaultDuration = time.Minute*5
-func getDurationFromDurations(durations []time.Duration) time.Duration{
-	if len(durations) == 0{
+
+var defaultDuration = time.Minute * 5
+
+func getDurationFromDurations(durations []time.Duration) time.Duration {
+	if len(durations) == 0 {
 		return defaultDuration
 	}
 	return durations[0]
@@ -117,7 +119,7 @@ func (s *ipfsStore) GetReader(cidStr string, timeouts ...time.Duration) (uio.Rea
 	if err != nil {
 		return nil, err
 	}
-	
+
 	timeout := getDurationFromDurations(timeouts)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -143,7 +145,7 @@ func (s *ipfsStore) Has(cidStr string, timeouts ...time.Duration) (bool, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	has, err := s.ipfs.HasBlock(ctx, c)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded){
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return false, err
 	}
 	return has, nil
