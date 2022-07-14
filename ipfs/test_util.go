@@ -1,6 +1,7 @@
 package ipfsverse
 
 import (
+	"bytes"
 	"testing"
 
 	pv "github.com/pilinsin/p2p-verse"
@@ -34,6 +35,9 @@ func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator) {
 
 	c, err := ipfs.Add([]byte("meow meow ^.^"))
 	checkError(t, err)
+	c_2, err := ipfs.AddReader(bytes.NewBufferString("meow meow ^.^"))
+	checkError(t, err)
+	assertError(t, c == c_2, "Add and AddReader must return the same cid")
 	t.Log("add,", c)
 	ipfs.Close()
 
@@ -47,6 +51,12 @@ func BaseTestIpfs(t *testing.T, hGen pv.HostGenerator) {
 
 	v, err := ipfs2.Get(c)
 	checkError(t, err)
+	r, err := ipfs2.GetReader(c)
+	checkError(t, err)
+	b := &bytes.Buffer{}
+	_, err = b.ReadFrom(r)
+	checkError(t, err)
+	assertError(t, bytes.Equal(v, b.Bytes()), "Get and GetReader must return the same bytes")
 	t.Log("get,", string(v))
 
 	cg, err := NewCidGetter()
