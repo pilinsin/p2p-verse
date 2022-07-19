@@ -51,13 +51,13 @@ func splitToBlocks(r io.Reader) ([]io.Reader, error) {
 	}
 }
 func mergeFromBlocks(rs []uio.ReadSeekCloser) (io.Reader, error) {
-	out := &bytes.Buffer{}
+	buf := &bytes.Buffer{}
 	for _, r := range rs {
-		if _, err := r.WriteTo(out); err != nil {
+		if _, err := r.WriteTo(buf); err != nil {
 			return nil, err
 		}
 	}
-	return out, nil
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
 type blockCids struct {
