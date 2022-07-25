@@ -43,7 +43,7 @@ func BaseTestSignatureStore(t *testing.T, hGen pv.HostGenerator) {
 		t.Log(string(res.Value))
 	}
 
-	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
+	assertError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")) == ErrAlreadyExist, "2nd Put must be fail")
 	time.Sleep(time.Second * 10)
 
 	v12, err := db1.Get(PubKeyToStr(opts0.Pub) + "/aaa")

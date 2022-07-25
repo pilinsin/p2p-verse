@@ -26,7 +26,7 @@ func testHashAccess(t *testing.T, hGen pv.HostGenerator, baiStr string) {
 	ok, err := db1.Has("aaa")
 	t.Log(ok, err)
 
-	checkError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")))
+	assertError(t, db0.Put("aaa", []byte("meow meow 2 ^.^")) == ErrAlreadyExist, "2nd Put must be fail")
 	time.Sleep(time.Second * 10)
 
 	v12, err := db1.Get("aaa")

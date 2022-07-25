@@ -27,6 +27,8 @@ const (
 	dirLock string = "Cannot acquire directory lock on"
 )
 
+var ErrAlreadyExist = errors.New("the key already exists")
+
 func MakeAddress(name, pid string, salt []byte, timeLimits ...time.Time) string {
 	tl := time.Time{}
 	if len(timeLimits) > 0 {
@@ -360,7 +362,7 @@ func (s *baseStore) autoSync() {
 func (s *baseStore) Put(key string, val []byte) error {
 	exist, err := s.Has(key)
 	if exist && err == nil {
-		return nil
+		return ErrAlreadyExist
 	}
 	return s.dt.Put(s.ctx, ds.NewKey(key), val)
 }
